@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  basebadge-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - APP_NAME=BaseBadge
+      - API_VERSION=v1
+      - BACKEND_CORS_ORIGINS=["*"]
+      - BASE_NETWORK=base-mainnet
+      - CHAIN_ID=8453
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for caching in the future
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+
+  # Optional: Add PostgreSQL for database in the future
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_DB: basebadge
+  #     POSTGRES_USER: basebadge
+  #     POSTGRES_PASSWORD: basebadge
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   redis_data:
+#   postgres_data: 
