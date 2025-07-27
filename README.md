@@ -122,8 +122,9 @@ BaseBadge Backend (FastAPI)
 - mini app on Baseapp & Farcaster
 - Premium AI-powered analytics
 - NFT integrations with reputation metadata
-
+<img width="1849" height="463" alt="RoadMap" src="https://github.com/user-attachments/assets/949ce483-9261-461b-bee9-9e93bdd19423" />
 ---
+
 
 ## 🧠 Learn More
 
