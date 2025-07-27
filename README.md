@@ -9,7 +9,7 @@ BaseBadge is a user-centric Web3 platform designed to empower users by providing
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![Base Network](https://img.shields.io/badge/Base-Network-orange.svg)](https://base.org/)
 
-<img width="600" height="600" alt="BaseBadge++" src="https://github.com/user-attachments/assets/e8bd49ee-a07f-4774-be0c-a0c1c1163d0f" />
+<img width="600" height="600" alt="BaseBadge++" src="https://github.com/user-attachments/assets/8a1490d2-0dd8-490f-b218-efec2cedf726" />
 
 ---
 
@@ -123,8 +123,6 @@ BaseBadge Backend (FastAPI)
 - Premium AI-powered analytics
 - NFT integrations with reputation metadata
 
-<img width="1024" height="1536" alt="RoadMap" src="https://github.com/user-attachments/assets/3de47f90-4fa1-4217-9e45-a53c6b549447" />
-
 ---
 
 ## 🧠 Learn More
@@ -183,4 +181,3 @@ BaseBadge Backend (FastAPI)
 **License**: MIT
 
 BaseBadge is built with ❤️ to make Web3 safer, more transparent, and more fun for everyone.
->>>>>>> a41222f (push in last point for now)
