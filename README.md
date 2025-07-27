@@ -118,8 +118,8 @@ BaseBadge Backend (FastAPI)
 - Wallet connect integration
 - DAO design & proposal system
 
-### 📱 Phase 4: Growth & Mobile
-- Mobile app (React Native)
+### 📱 Phase 4: Growth & More Features
+- mini app on Baseapp & Farcaster
 - Premium AI-powered analytics
 - NFT integrations with reputation metadata
 
