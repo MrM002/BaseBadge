@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""
+Suspicious NFT detection function for BaseBadge project - Free User Version
+"""
+
+import requests
+import json
+import csv
+import os
+import re
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Set
+from functools import lru_cache
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# API Configuration
+BLOCKSCOUT_API = "https://base.blockscout.com/api"
+BASESCAN_API = "https://api.basescan.org/api"
+
+# Request settings
+REQUEST_TIMEOUT = 15
+MAX_RETRIES = 3
+RATE_LIMIT_DELAY = 0.1
+
+# ============================================================================
+# SUSPICIOUS NFT PATTERNS
+# ============================================================================
+
+# Known suspicious patterns
+SUSPICIOUS_PATTERNS = {
+    "FAKE_COLLECTION_NAMES": [
+        "bored ape", "cryptopunk", "azuki", "doodles", "moonbird", 
+        "clone x", "pudgy penguin", "mutant ape", "otherdeeds", "meebits",
+        "world of women", "cool cats", "veefriends", "art blocks"
+    ],
+    
+    "SUSPICIOUS_SYMBOLS": [
+        "BAYC", "PUNK", "AZUKI", "DOODLE", "MOONBIRD", "CLONEX", 
+        "PUDGY", "MAYC", "OTHR", "MEEBIT", "WOW", "COOL", "VEE"
+    ],
+    
+    "SCAM_KEYWORDS": [
+        "airdrop", "free mint", "claim now", "limited time", "exclusive",
+        "whitelist", "presale", "giveaway", "winner", "congratulations",
+        "urgent", "act fast", "don't miss", "last chance"
+    ],
+    
+    "SUSPICIOUS_DOMAINS": [
+        "bit.ly", "tinyurl.com", "t.co", "short.link", "cutt.ly",
+        "rebrand.ly", "ow.ly", "is.gd", "buff.ly"
+    ]
+}
+
+# Known legitimate NFT collections on Base
+LEGITIMATE_BASE_COLLECTIONS = {
+    "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  # DEGEN
+    "0x03a520b32c04bf3beef7beb72e919cf822ed34f1",  # Base, Introduced
+    "0x7c74dfe39976dc395529c14e54a597809980e01c",  # Zora Creator
+    "0x9458e29713b98bf452ee9a2dc6b77f9d2b3e35a6",  # Zora Market
+}
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+@lru_cache(maxsize=1000)
+def get_nft_transactions_cached(address: str) -> list:
+    """Cache NFT transaction results"""
+    return get_nft_transactions(address)
+
+def get_nft_transactions(address: str) -> list:
+    """Fetch NFT transactions for an address"""
+    try:
+        params = {
+            "module": "account",
+            "action": "tokennfttx",
+            "address": address,
+            "page": 1,
+            "offset": 500,
+            "sort": "desc"
+        }
+        
+        response = requests.get(
+            BLOCKSCOUT_API,
+            params=params,
+            timeout=REQUEST_TIMEOUT
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == "1":
+                return data.get('result', [])
+        
+        return []
+        
+    except Exception as e:
+        print(f"Error fetching NFT transactions: {e}")
+        return []
+
+def get_contract_info(contract_address: str) -> dict:
+    """Get basic contract information"""
+    try:
+        params = {
+            "module": "contract",
+            "action": "getsourcecode",
+            "address": contract_address
+        }
+        
+        response = requests.get(
+            BASESCAN_API,
+            params=params,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == '1' and data.get('result'):
+                contract_info = data['result'][0]
+                return {
+                    "is_verified": contract_info.get('SourceCode') != '',
+                    "contract_name": contract_info.get('ContractName', ''),
+                    "compiler_version": contract_info.get('CompilerVersion', ''),
+                    "creation_date": contract_info.get('ConstructorArguments', '')
+                }
+    except:
+        pass
+    
+    return {
+        "is_verified": False,
+        "contract_name": "",
+        "compiler_version": "",
+        "creation_date": ""
+    }
+
+def analyze_token_metadata(token_name: str, token_symbol: str, contract_name: str) -> dict:
+    """Analyze token metadata for suspicious patterns"""
+    suspicion_score = 0
+    red_flags = []
+    
+    # Check for fake collection names
+    token_name_lower = token_name.lower()
+    token_symbol_lower = token_symbol.lower()
+    contract_name_lower = contract_name.lower()
+    
+    for fake_name in SUSPICIOUS_PATTERNS["FAKE_COLLECTION_NAMES"]:
+        if fake_name in token_name_lower or fake_name in contract_name_lower:
+            suspicion_score += 40
+            red_flags.append(f"FAKE_COLLECTION_NAME: {fake_name}")
+    
+    # Check for suspicious symbols
+    for sus_symbol in SUSPICIOUS_PATTERNS["SUSPICIOUS_SYMBOLS"]:
+        if sus_symbol.lower() in token_symbol_lower:
+            suspicion_score += 35
+            red_flags.append(f"SUSPICIOUS_SYMBOL: {sus_symbol}")
+    
+    # Check for scam keywords
+    combined_text = f"{token_name_lower} {contract_name_lower}"
+    for keyword in SUSPICIOUS_PATTERNS["SCAM_KEYWORDS"]:
+        if keyword in combined_text:
+            suspicion_score += 25
+            red_flags.append(f"SCAM_KEYWORD: {keyword}")
+    
+    # Check for suspicious naming patterns
+    if re.search(r'\d{4,}', token_name):  # Long numbers in name
+        suspicion_score += 20
+        red_flags.append("SUSPICIOUS_NUMBERING")
+    
+    if len(token_name) < 3 or len(token_symbol) < 2:
+        suspicion_score += 15
+        red_flags.append("SUSPICIOUS_SHORT_NAME")
+    
+    # Check for Unicode/special characters (common in scams)
+    if re.search(r'[^\x00-\x7F]', token_name):
+        suspicion_score += 30
+        red_flags.append("UNICODE_CHARACTERS")
+    
+    return {
+        "suspicion_score": min(suspicion_score, 100),
+        "red_flags": red_flags
+    }
+
+def analyze_contract_behavior(contract_address: str, transactions: list) -> dict:
+    """Analyze contract behavior patterns"""
+    suspicion_score = 0
+    red_flags = []
+    
+    # Get contract info
+    contract_info = get_contract_info(contract_address)
+    
+    # Unverified contract
+    if not contract_info["is_verified"]:
+        suspicion_score += 25
+        red_flags.append("UNVERIFIED_CONTRACT")
+    
+    # Analyze transaction patterns
+    contract_txs = [tx for tx in transactions if tx.get('contractAddress', '').lower() == contract_address.lower()]
+    
+    if contract_txs:
+        # Check for rapid minting (potential spam)
+        timestamps = [int(tx.get('timeStamp', 0)) for tx in contract_txs]
+        if len(timestamps) > 1:
+            time_diffs = [timestamps[i] - timestamps[i+1] for i in range(len(timestamps)-1)]
+            avg_time_diff = sum(time_diffs) / len(time_diffs)
+            
+            if avg_time_diff < 60:  # Less than 1 minute between mints
+                suspicion_score += 30
+                red_flags.append("RAPID_MINTING_PATTERN")
+        
+        # Check for mass distribution to single address
+        to_addresses = [tx.get('to', '').lower() for tx in contract_txs]
+        unique_recipients = len(set(to_addresses))
+        total_transfers = len(contract_txs)
+        
+        if total_transfers > 10 and unique_recipients / total_transfers < 0.3:
+            suspicion_score += 25
+            red_flags.append("MASS_DISTRIBUTION_PATTERN")
+    
+    # Check if contract is in known legitimate collections
+    if contract_address.lower() in LEGITIMATE_BASE_COLLECTIONS:
+        suspicion_score = max(0, suspicion_score - 50)
+        red_flags.append("KNOWN_LEGITIMATE_COLLECTION")
+    
+    return {
+        "suspicion_score": min(suspicion_score, 100),
+        "red_flags": red_flags,
+        "contract_info": contract_info
+    }
+
+def calculate_overall_risk(metadata_analysis: dict, contract_analysis: dict) -> tuple:
+    """Calculate overall risk score and level"""
+    metadata_score = metadata_analysis["suspicion_score"]
+    contract_score = contract_analysis["suspicion_score"]
+    
+    # Weighted average (metadata is more important for NFT scams)
+    overall_score = int((metadata_score * 0.6) + (contract_score * 0.4))
+    
+    # Determine risk level
+    if overall_score >= 70:
+        risk_level = "HIGH"
+    elif overall_score >= 45:
+        risk_level = "MEDIUM"
+    elif overall_score >= 25:
+        risk_level = "LOW"
+    else:
+        risk_level = "MINIMAL"
+    
+    return overall_score, risk_level
+
+def group_suspicious_nfts(suspicious_nfts: list) -> list:
+    """Group suspicious NFTs by contract"""
+    contract_groups = {}
+    
+    for nft in suspicious_nfts:
+        contract_addr = nft['contract_address']
+        
+        if contract_addr not in contract_groups:
+            contract_groups[contract_addr] = {
+                'contract_address': contract_addr,
+                'token_name': nft['token_name'],
+                'token_symbol': nft['token_symbol'],
+                'risk_level': nft['risk_level'],
+                'risk_score': nft['risk_score'],
+                'red_flags': set(nft['red_flags']),
+                'token_count': 0,
+                'first_received': float('inf'),
+                'last_received': 0,
+                'token_ids': [],
+                'contract_info': nft.get('contract_info', {})
+            }
+        
+        group = contract_groups[contract_addr]
+        group['token_count'] += 1
+        group['first_received'] = min(group['first_received'], nft['timestamp'])
+        group['last_received'] = max(group['last_received'], nft['timestamp'])
+        group['token_ids'].append(nft['token_id'])
+        group['red_flags'].update(nft['red_flags'])
+        group['risk_score'] = max(group['risk_score'], nft['risk_score'])
+    
+    # Convert to final format
+    return sorted([
+        {
+            'contract_address': group['contract_address'],
+            'token_name': group['token_name'],
+            'token_symbol': group['token_symbol'],
+            'risk_level': group['risk_level'],
+            'risk_score': group['risk_score'],
+            'red_flags': list(group['red_flags']),
+            'token_count': group['token_count'],
+            'first_received': int(group['first_received']) if group['first_received'] != float('inf') else 0,
+            'last_received': int(group['last_received']),
+            'sample_token_ids': group['token_ids'][:5],  # Show first 5 token IDs
+            'contract_verified': group['contract_info'].get('is_verified', False),
+            'contract_name': group['contract_info'].get('contract_name', '')
+        }
+        for group in contract_groups.values()
+    ], key=lambda x: x['risk_score'], reverse=True)
+
+def save_suspicious_nfts_to_csv(address: str, suspicious_nfts: List[Dict]):
+    """Save suspicious NFTs data to CSV file"""
+    try:
+        # Create data directory if it doesn't exist
+        data_dir = Path("data/security_reports")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"suspicious_nfts_{address}_{timestamp}.csv"
+        filepath = data_dir / filename
+        
+        # Write to CSV
+        with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = [
+                'contract_address', 'token_name', 'token_symbol', 'risk_level', 'risk_score',
+                'red_flags', 'token_count', 'first_received', 'last_received',
+                'sample_token_ids', 'contract_verified', 'contract_name'
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for nft_data in suspicious_nfts:
+                # Convert lists to strings
+                nft_data_copy = nft_data.copy()
+                nft_data_copy['red_flags'] = '; '.join(nft_data['red_flags'])
+                nft_data_copy['sample_token_ids'] = ', '.join(map(str, nft_data['sample_token_ids']))
+                writer.writerow(nft_data_copy)
+        
+        print(f"Suspicious NFTs report saved to: {filepath}")
+        
+    except Exception as e:
+        print(f"Error saving suspicious NFTs CSV: {e}")
+
+# ============================================================================
+# MAIN FUNCTION
+# ============================================================================
+
+def get_suspicious_nfts(address: str) -> dict:
+    """
+    Analyze wallet for suspicious NFTs - Free User Version.
+    Detects fake collections, scam NFTs, and suspicious minting patterns.
+    Returns count and analysis of suspicious NFTs.
+    """
+    try:
+        # Get NFT transactions
+        nft_transactions = get_nft_transactions_cached(address)
+        if not nft_transactions:
+            return {"suspicious_nfts": 0, "details": []}
+        
+        print(f"Found {len(nft_transactions)} NFT transactions for analysis...")
+        
+        # Analyze each NFT transaction
+        suspicious_nfts = []
+        analyzed_contracts = set()
+        
+        for tx in nft_transactions:
+            # Only analyze incoming NFTs (received by the address)
+            if tx.get('to', '').lower() != address.lower():
+                continue
+            
+            contract_address = tx.get('contractAddress', '').lower()
+            token_name = tx.get('tokenName', 'Unknown')
+            token_symbol = tx.get('tokenSymbol', 'Unknown')
+            token_id = tx.get('tokenID', '0')
+            
+            # Skip if we've already analyzed this contract
+            if contract_address in analyzed_contracts:
+                continue
+            analyzed_contracts.add(contract_address)
+            
+            # Analyze token metadata
+            metadata_analysis = analyze_token_metadata(token_name, token_symbol, token_name)
+            
+            # Analyze contract behavior
+            contract_analysis = analyze_contract_behavior(contract_address, nft_transactions)
+            
+            # Calculate overall risk
+            overall_score, risk_level = calculate_overall_risk(metadata_analysis, contract_analysis)
+            
+            # Only include if risk score is meaningful
+            if overall_score >= 20:  # Threshold for suspicious activity
+                all_red_flags = metadata_analysis['red_flags'] + contract_analysis['red_flags']
+                
+                suspicious_nfts.append({
+                    'contract_address': contract_address,
+                    'token_name': token_name,
+                    'token_symbol': token_symbol,
+                    'token_id': token_id,
+                    'risk_level': risk_level,
+                    'risk_score': overall_score,
+                    'red_flags': all_red_flags,
+                    'timestamp': int(tx.get('timeStamp', 0)),
+                    'transaction_hash': tx.get('hash', ''),
+                    'contract_info': contract_analysis['contract_info']
+                })
+        
+        # Group by contract
+        grouped_suspicious_nfts = group_suspicious_nfts(suspicious_nfts)
+        
+        # Save detailed report to CSV
+        if grouped_suspicious_nfts:
+            save_suspicious_nfts_to_csv(address, grouped_suspicious_nfts)
+        
+        return {
+            "suspicious_nfts": len(grouped_suspicious_nfts),
+            "details": grouped_suspicious_nfts
+        }
+        
+    except Exception as e:
+        print(f"Error in get_suspicious_nfts: {e}")
+        return {"suspicious_nfts": 0, "error": str(e)}
+
+# ============================================================================
+# EXAMPLE USAGE
+# ============================================================================
+
+if __name__ == "__main__":
+    # Example usage
+    test_address = "0x1234567890123456789012345678901234567890"
+    result = get_suspicious_nfts(test_address)
+    print(json.dumps(result, indent=2))

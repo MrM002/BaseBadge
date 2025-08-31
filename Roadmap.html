@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseBadge Roadmap</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 4rem;
+            padding: 2rem 0;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+        
+        .header p {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .roadmap {
+            display: grid;
+            gap: 3rem;
+        }
+        
+        .phase {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .phase:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+        }
+        
+        .phase-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+        
+        .phase-number {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+        
+        .phase-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        
+        .phase-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .status-completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .status-progress {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        
+        .status-planned {
+            background: rgba(99, 102, 241, 0.2);
+            color: #6366f1;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .phase-description {
+            color: #94a3b8;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .features {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+        }
+        
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        
+        .icon-completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .icon-progress {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+        
+        .icon-planned {
+            background: rgba(99, 102, 241, 0.2);
+            color: #6366f1;
+        }
+        
+        .feature-text {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+        
+        .timeline {
+            position: relative;
+            margin: 4rem 0;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+            transform: translateX(-50%);
+        }
+        
+        .milestone {
+            position: relative;
+            margin: 2rem 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .milestone:nth-child(odd) {
+            flex-direction: row;
+        }
+        
+        .milestone:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+        
+        .milestone-content {
+            flex: 1;
+            padding: 1.5rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .milestone:nth-child(odd) .milestone-content {
+            margin-right: 2rem;
+        }
+        
+        .milestone:nth-child(even) .milestone-content {
+            margin-left: 2rem;
+        }
+        
+        .milestone-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid #0f172a;
+            z-index: 10;
+        }
+        
+        .milestone-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 0.5rem;
+        }
+        
+        .milestone-date {
+            color: #3b82f6;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .milestone-description {
+            color: #94a3b8;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+        
+        .stat-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #94a3b8;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 4rem;
+            padding: 2rem 0;
+            border-top: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        .footer p {
+            color: #64748b;
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .timeline::before {
+                left: 2rem;
+            }
+            
+            .milestone {
+                flex-direction: column !important;
+                align-items: flex-start;
+                margin-left: 2rem;
+            }
+            
+            .milestone-content {
+                margin: 0 !important;
+                margin-top: 1rem;
+            }
+            
+            .milestone-dot {
+                left: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BaseBadge Roadmap</h1>
+            <p>Our journey to build the leading decentralized identity and reputation platform on Base Network</p>
+        </div>
+        
+        <div class="roadmap">
+            <!-- Phase 1: Foundation -->
+            <div class="phase">
+                <div class="phase-header">
+                    <div class="phase-number">1</div>
+                    <div>
+                        <div class="phase-title">Foundation</div>
+                        <div class="phase-status status-completed">Completed</div>
+                    </div>
+                </div>
+                <div class="phase-description">
+                    Core infrastructure and basic functionality implementation
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Smart contract development and deployment</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Backend API with Node.js/Express</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Frontend application with React.js</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Basic reputation scoring system</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Wallet integration and connection</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-completed">✅</div>
+                        <div class="feature-text">Security testing and validation</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 2: Core Features -->
+            <div class="phase">
+                <div class="phase-header">
+                    <div class="phase-number">2</div>
+                    <div>
+                        <div class="phase-title">Core Features</div>
+                        <div class="phase-status status-progress">In Progress</div>
+                    </div>
+                </div>
+                <div class="phase-description">
+                    Enhanced reputation system and badge management
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Advanced scoring algorithms</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Multi-metric reputation calculation</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Historical data tracking</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Badge creation and management</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Achievement unlocking system</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-progress">🚧</div>
+                        <div class="feature-text">Dashboard improvements</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 3: Social Integration -->
+            <div class="phase">
+                <div class="phase-header">
+                    <div class="phase-number">3</div>
+                    <div>
+                        <div class="phase-title">Social Integration</div>
+                        <div class="phase-status status-planned">Planned</div>
+                    </div>
+                </div>
+                <div class="phase-description">
+                    Farcaster integration and community features
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Farcaster protocol integration</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Social identity verification</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Reputation sharing on Farcaster</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Baseapp mini app development</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Mobile-first experience</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Community reputation features</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 4: Advanced Features -->
+            <div class="phase">
+                <div class="phase-header">
+                    <div class="phase-number">4</div>
+                    <div>
+                        <div class="phase-title">Advanced Features</div>
+                        <div class="phase-status status-planned">Planned</div>
+                    </div>
+                </div>
+                <div class="phase-description">
+                    Analytics, multi-chain support, and developer tools
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Advanced analytics dashboard</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Reputation trends and patterns</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Predictive scoring models</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Multi-chain support</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Cross-chain reputation</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Developer SDKs and tools</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 5: Enterprise & Scale -->
+            <div class="phase">
+                <div class="phase-header">
+                    <div class="phase-number">5</div>
+                    <div>
+                        <div class="phase-title">Enterprise & Scale</div>
+                        <div class="phase-status status-planned">Planned</div>
+                    </div>
+                </div>
+                <div class="phase-description">
+                    Business features and global expansion
+                </div>
+                <div class="features">
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Business reputation scoring</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Corporate identity verification</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Compliance and regulatory tools</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Enterprise API access</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Multi-language support</div>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon icon-planned">📋</div>
+                        <div class="feature-text">Global market expansion</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timeline -->
+        <div class="timeline">
+            <div class="milestone">
+                <div class="milestone-dot"></div>
+                <div class="milestone-content">
+                    <div class="milestone-title">Phase 1 Complete</div>
+                    <div class="milestone-date">July 4 - August 29, 2025</div>
+                    <div class="milestone-description">Core infrastructure deployed and tested</div>
+                </div>
+            </div>
+            
+            <div class="milestone">
+                <div class="milestone-dot"></div>
+                <div class="milestone-content">
+                    <div class="milestone-title">Phase 2 Launch</div>
+                    <div class="milestone-date">September - December 2025</div>
+                    <div class="milestone-description">Enhanced reputation system and badges</div>
+                </div>
+            </div>
+            
+            <div class="milestone">
+                <div class="milestone-dot"></div>
+                <div class="milestone-content">
+                    <div class="milestone-title">Farcaster Integration</div>
+                    <div class="milestone-date">January - March 2026</div>
+                    <div class="milestone-description">Social identity and community features</div>
+                </div>
+            </div>
+            
+            <div class="milestone">
+                <div class="milestone-dot"></div>
+                <div class="milestone-content">
+                    <div class="milestone-title">Advanced Analytics</div>
+                    <div class="milestone-date">April - June 2026</div>
+                    <div class="milestone-description">Multi-chain support and developer tools</div>
+                </div>
+            </div>
+            
+            <div class="milestone">
+                <div class="milestone-dot"></div>
+                <div class="milestone-content">
+                    <div class="milestone-title">Enterprise Launch</div>
+                    <div class="milestone-date">July - September 2026</div>
+                    <div class="milestone-description">Business features and global expansion</div>
+                </div>
+            </div>
+        </div>
+        
+
+        
+        <div class="footer">
+            <p>This roadmap is a living document and will be updated regularly based on progress, feedback, and market conditions.</p>
+        </div>
+    </div>
+</body>
+</html>

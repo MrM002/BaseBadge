@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+requests
+pydantic
+pydantic-settings
+python-multipart
+web3
+aiohttp
+pytest

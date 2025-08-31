@@ -1,0 +1,38 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# Coverage reports
+lcov.info
+*.lcov
+
+# Gas snapshots
+.gas-snapshot
+
+# Foundry artifacts
+foundry.toml.bak
+remappings.txt.bak
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
