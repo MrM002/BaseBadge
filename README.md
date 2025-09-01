@@ -53,7 +53,7 @@ BaseBadge/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/your-username/BaseBadge.git
+git clone https://github.com/MrM002/BaseBadge.git
 cd BaseBadge
 ```
 
@@ -82,53 +82,19 @@ cd onchain && forge build
 
 5. **Access the application**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- Backend API: http://localhost:8000
 - Smart Contracts: Deployed on Base network
 
 ## 📖 **Documentation**
 
-### Project Overview
-- [README](README.md) - Project introduction and overview
-- [Roadmap](ROADMAP.md) - Development timeline and future plans
-- [Security Overview](SECURITY_OVERVIEW.md) - Comprehensive security information
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Instructions for deploying the application
 
-### Development Guides
-- [Contributing Guide](docs/contributing.md) - Guidelines for contributing to the project
-- [Security Guidelines](docs/security.md) - Security best practices for developers
+See our [Documentation Index](DOCUMENTATION_INDEX.md) for complete documentation.
 
-## 🔧 Component Documentation
-
-### Frontend
-- [Frontend README](frontend/README.md) - Frontend application overview
-- [Frontend Security](frontend/SECURITY.md) - Frontend-specific security information
-
-### Backend
-- [Backend README](backend/README.md) - Backend API overview
-- [Backend Security](backend/SECURITY.md) - Backend-specific security information
-  
-### Smart Contracts
-- [Onchain README](onchain/README.md) - Smart contract overview
-- [Mainnet Deployment](onchain/MAINNET_DEPLOYMENT.md) - Mainnet deployment information
-- [V2 Upgrade Guide](onchain/SCORECARD_V2_UPGRADE.md) - Guide for V2 contract upgrade
-
-## 🔒 Security Documentation
-
+### **Security & Development**
 - [Security Policy](SECURITY.md) - Project security policy
-- [Security Fixes](SECURITY_FIXES.md) - Project security policy
-- [Security Audit Reports](onchain/audit_reports/AUDIT_SUMMARY.md) - Smart contract audit reports
-- [Security Badges](onchain/audit_reports/SECURITY_BADGES.md) - Security certification badges
-- [Quick Start Security](onchain/audit_reports/QUICK_START.md) - Quick start security guide
+- [Contributing Guide](docs/contributing.md) - Guidelines for contributing
+- [Security Guidelines](docs/security.md) - Security best practices
 
-## 📊 Technical Documentation
-
-- [Architecture Overview](docs/architecture.md) - System architecture documentation
-- [Data Models](docs/data-models.md) - Data model documentation
-- [Integration Guide](docs/integration.md) - Guide for integrating with BaseBadge
-
-## 🔄 Updates and Changes
-
-- [Updates Log](UPDATES.md) - Log of recent updates and changes
 
 ## 🔒 **Security**
 
@@ -153,8 +119,12 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🌐 **Community**
+## 🌐 **Contact & Community**
 
+- **GitHub**: [MrM002/BaseBadge](https://github.com/MrM002/BaseBadge)
+- **Issues & Bugs**: Submit via [GitHub Issues](https://github.com/MrM002/BaseBadge/issues)
+- **Security Concerns**: Use [GitHub Security Advisories](https://github.com/MrM002/BaseBadge/security/advisories/new)
+ 
 
 ## 📊 **Project Status**
 
