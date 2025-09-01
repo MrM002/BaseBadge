@@ -1,0 +1,1022 @@
+import requests
+import json
+import csv
+import os
+import re
+import time
+import asyncio
+import aiohttp
+import math
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, Dict, Set, Tuple
+from functools import lru_cache
+from collections import defaultdict
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+class Config:
+    MAX_TRANSACTIONS = 5000  # Limit for performance
+    REQUEST_TIMEOUT = 15
+    MAX_RETRIES = 3
+    RATE_LIMIT_DELAY = 0.1
+    CACHE_SIZE = 1000
+
+# ============================================================================
+# RISK SCORER CLASS
+# ============================================================================
+
+class RiskScorer:
+    def __init__(self):
+        # Base risk weights (0-100 scale)
+        self.base_risks = {
+            "0x095ea7b3": 25,  # approve - moderate base risk
+            "0xd505accf": 35,  # permit - higher base risk (gasless)
+            "0xa22cb465": 30,  # setApprovalForAll - high for NFTs
+            "0xac9650d8": 20,  # multicall - moderate
+            "0x1cff79cd": 15,  # execute - lower base
+            "0x40c10f19": 20,  # mint - moderate
+        }
+        
+        # Risk multipliers for different factors
+        self.multipliers = {
+            "UNLIMITED_APPROVAL": 1.8,
+            "VERY_LARGE_APPROVAL": 1.4,
+            "GASLESS_APPROVAL": 1.3,
+            "MALICIOUS_SPENDER": 2.5,
+            "SUSPICIOUS_SPENDER_ADDRESS": 1.6,
+            "NFT_APPROVAL_FOR_ALL": 1.5,
+            "BATCH_OPERATION": 1.2,
+            "MULTIPLE_APPROVALS_IN_BATCH": 1.7,
+            "UNVERIFIED_CONTRACT": 1.3,
+            "UNVERIFIED_NFT_CONTRACT": 1.3,
+            "PROXY_CONTRACT": 1.2,
+            "UNLIMITED_GASLESS_APPROVAL": 2.0,
+            "MULTIPLE_DANGEROUS_CALLS": 1.5,
+        }
+
+    def calculate_sophisticated_risk_score(self, signature_data: dict) -> Tuple[int, str]:
+        """
+        Calculate a more nuanced risk score using multiple factors
+        Returns: (risk_score, risk_level)
+        """
+        base_score = self.base_risks.get(signature_data['function_signature'], 10)
+        
+        # Apply contextual multipliers
+        final_score = base_score
+        applied_factors = []
+        
+        for factor in signature_data.get('risk_factors', []):
+            if factor in self.multipliers:
+                multiplier = self.multipliers[factor]
+                final_score *= multiplier
+                applied_factors.append(f"{factor}({multiplier}x)")
+        
+        # Apply diminishing returns to prevent extreme scores
+        final_score = self._apply_diminishing_returns(final_score)
+        
+        # Add contextual adjustments
+        final_score = self._apply_contextual_adjustments(final_score, signature_data)
+        
+        # Cap at 100 and determine risk level
+        final_score = min(int(final_score), 100)
+        risk_level = self._determine_risk_level(final_score)
+        
+        return final_score, risk_level
+
+    def _apply_diminishing_returns(self, score: float) -> float:
+        """Apply logarithmic scaling to prevent extreme scores"""
+        if score <= 50:
+            return score
+        else:
+            # Logarithmic scaling for scores above 50
+            excess = score - 50
+            scaled_excess = 30 * math.log10(1 + excess / 10)
+            return min(50 + scaled_excess, 95)
+
+    def _apply_contextual_adjustments(self, score: float, data: dict) -> float:
+        """Apply context-based adjustments"""
+        
+        # Time-based adjustments
+        if 'timestamp' in data:
+            days_ago = (datetime.now().timestamp() - data['timestamp']) / 86400
+            if days_ago < 1:  # Very recent
+                score *= 1.1
+            elif days_ago > 365:  # Very old
+                score *= 0.9
+        
+        # Frequency adjustments
+        tx_count = data.get('transaction_count', 1)
+        if tx_count > 10:
+            score *= 1.2
+        elif tx_count > 50:
+            score *= 1.4
+        
+        # Amount-based adjustments for approvals
+        if data.get('is_unlimited'):
+            # Already handled in multipliers, but add context
+            spender_address = data.get('spender_address', '').lower()
+            known_protocols = self._get_known_protocols()
+            defi_categories = self._get_known_defi_categories()
+            
+            if spender_address in known_protocols:
+                # Reduce risk for known protocols
+                score *= 0.7  # More significant reduction for known protocols
+                
+                # Additional reduction based on protocol category
+                for category, addresses in defi_categories.items():
+                    if spender_address in addresses:
+                        if category == "core_infrastructure":
+                            score *= 0.6  # Very low risk for core infrastructure
+                        elif category == "major_dexes":
+                            score *= 0.75  # Low risk for major DEXes
+                        elif category == "lending_protocols":
+                            score *= 0.8  # Moderate risk for lending protocols
+                        elif category == "nft_marketplaces":
+                            score *= 0.85  # Slightly higher risk for NFT marketplaces
+                        elif category == "bridges":
+                            score *= 0.9  # Higher risk for bridges (more complex)
+                        break
+        
+        # Contract verification status
+        if data.get('contract_verified') is False:
+            score *= 1.2
+        
+        return score
+
+    def _determine_risk_level(self, score: int) -> str:
+        """Determine risk level based on score with more granular levels"""
+        if score >= 80:
+            return "CRITICAL"
+        elif score >= 65:
+            return "HIGH"
+        elif score >= 45:
+            return "MEDIUM"
+        elif score >= 25:
+            return "LOW"
+        else:
+            return "MINIMAL"
+
+    def _get_known_protocols(self) -> set:
+        """
+        Comprehensive list of known legitimate protocol addresses on Base
+        """
+        return {
+            # Base Core Infrastructure
+            "0x4200000000000000000000000000000000000006",  # WETH9
+            "0x4200000000000000000000000000000000000007",  # L2CrossDomainMessenger
+            "0x4200000000000000000000000000000000000010",  # L2StandardBridge
+            "0x4200000000000000000000000000000000000011",  # SequencerFeeVault
+            "0x4200000000000000000000000000000000000015",  # L1Block
+            "0x4200000000000000000000000000000000000016",  # L2ToL1MessagePasser
+            "0x4200000000000000000000000000000000000014",  # L2ERC721Bridge
+            "0x4200000000000000000000000000000000000019",  # BaseFeeVault
+            "0x420000000000000000000000000000000000001a",  # L1FeeVault
+            "0x4200000000000000000000000000000000000021",  # EAS (Ethereum Attestation Service)
+            "0x4200000000000000000000000000000000000020",  # EASSchemaRegistry
+            
+            # Multicall
+            "0xca11bde05977b3631167028862be2a173976ca11",  # Multicall3
+            
+            # Uniswap V3 Protocol
+            "0x000000000022d473030f116ddee9f6b43ac78ba3",  # Permit2
+            "0x198ef79f1f515f02dfe9e3115ed9fc07183f02fc",  # Universal Router
+            "0x33128a8fc17869897dce68ed026d694621f6fdfd",  # V3CoreFactory
+            "0x091e99cb1c49331a94dd62755d168e941abd0693",  # Multicall
+            "0x0cdeee061c75d43c82520ed998c23ac2991c9ac6d",  # TickLens
+            "0x03a520b32c04bf3beef7beb72e919cf822ed34f1",  # NonfungibleTokenPositionManager
+            "0x3d4e44eb1374240ce5f1b871ab261cd16335b76a",  # QuoterV2
+            "0x2626664c2603336e57b271c5c0b26f421741e481",  # SwapRouter
+            "0x23cf10b1ee3adfca73b0ef17c07f7577e7acd2d7",  # V3Migrator
+            "0x42be4d6527829fefa1493e1fb9f3676d2425c3c1",  # V3Staker
+            
+            # Uniswap V2 Protocol
+            "0x8909dc15e40173ff4699343b6eb8132c65e18ec6",  # Factory
+            "0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24",  # Router
+            
+            # Major DeFi Protocols (Common addresses across chains)
+            "0x1111111254eeb25477b68fb85ed929f73a960582",  # 1inch V4 Router
+            "0x1111111254fb6c44bac0bed2854e76f90643097d",  # 1inch V5 Router
+            "0x111111125421ca6dc452d289314280a0f8842a65",  # 1inch V6 Router
+            "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",  # Uniswap V2 Router (if deployed)
+            "0xe592427a0aece92de3edee1f18e0157c05861564",  # Uniswap V3 SwapRouter
+            "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",  # Uniswap Universal Router
+            "0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b",  # Uniswap Universal Router V2
+            
+            # Aerodrome (Base's main DEX)
+            "0x827922686190790b37229fd06084350e74485b72",  # Aerodrome Router
+            "0x420dd381b31aef6683db6b902084cb0ffece40da",  # Aerodrome Factory
+            "0x9c12939390052919af3155f41bf4160fd3666a6f",  # Aerodrome Voter
+            
+            # Morpho (Lending Protocol)
+            "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",  # Morpho Blue
+            
+            # Compound Protocol (if deployed on Base)
+            "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b",  # Compound Comptroller
+            "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643",  # cDAI
+            "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5",  # cETH
+            "0x39aa39c021dfbae8fac545936693ac917d5e7563",  # cUSDC
+            "0xf650c3d88d12db855b8bf7d11be6c55a4e07dcc9",  # cUSDT
+            
+            # Aave Protocol (if deployed on Base)
+            "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9",  # Aave Lending Pool
+            "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5",  # Aave Lending Pool Address Provider
+            
+            # OpenSea
+            "0x00000000000001ad428e4906ae43d8f9852d0dd6",  # OpenSea Seaport 1.4
+            "0x00000000000000adc04c56bf30ac9d3c0aaf14dc",  # OpenSea Seaport 1.5
+            "0x0000000000000068f116a894984e2db1123eb395",  # OpenSea Seaport 1.6
+            
+            # Zora Protocol
+            "0x7c74dfe39976dc395529c14e54a597809980e01c",  # Zora NFT Creator
+            "0x9458e29713b98bf452ee9a2dc6b77f9d2b3e35a6",  # Zora Market
+            
+            # Safe (Gnosis Safe)
+            "0xa6b71e26c5e0845f74c812102ca7114b6a896ab2",  # Safe Proxy Factory
+            "0xd9db270c1b5e3bd161e8c8503c55ceabee709552",  # Safe Master Copy
+            
+            # ENS (if deployed on Base)
+            "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e",  # ENS Registry
+            "0x084b1c3c81545d370f3634392de611caabff8148",  # ENS Base Registrar
+            
+            # Chainlink Oracles
+            "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419",  # ETH/USD Price Feed
+            "0xa50ba011c48153de246e5192c8f9258a2ba79ca9",  # USDC/USD Price Feed
+            "0x3e7d1eab13ad0104d2750b8863b489d65364e32d",  # USDT/USD Price Feed
+            
+            # Popular Token Contracts (Major stablecoins and tokens)
+            "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  # USDC on Base
+            "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  # DAI on Base
+            "0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22",  # cbETH on Base
+            "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  # DEGEN on Base
+            
+            # Bridge Contracts
+            "0x3154cf16ccdb4c6d922629664174b904d80f2c35",  # Base L1 Standard Bridge
+            "0x866e82a600a1414e583f7f13623f1ac5d58b0afa",  # Base L1 Cross Domain Messenger
+            
+            # Popular DeFi Aggregators
+            "0xdef1c0ded9bec7f1a1670819833240f027b25eff",  # 0x Exchange Proxy
+            "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",  # Kyber Network Router
+            "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",  # SushiSwap Router
+            
+            # Curve Finance (if deployed)
+            "0x90e00ace148ca3b23ac1bc8c240c2a7dd9c2d7f5",  # Curve Registry
+            "0x2f50d538606fa9edd2b11e2446beb18c9d5846bb",  # Curve Address Provider
+            
+            # Balancer (if deployed)
+            "0xba12222222228d8ba445958a75a0704d566bf2c8",  # Balancer Vault
+            
+            # Yearn Finance (if deployed)
+            "0x50c1a2ea0a861a967d9d0ffe2ae4012c2e053804",  # Yearn Registry
+            
+            # Synthetix (if deployed)
+            "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",  # Synthetix SNX Token
+            "0x5b1b5fea1b99d83ad479df0c222f0492385381dd",  # Synthetix Address Resolver
+            
+            # MakerDAO (if deployed)
+            "0x35d1b3f3d7966a1dfe207aa4514c12a259a0492b",  # MakerDAO Multicall
+            "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2",  # MakerDAO MKR Token
+            
+            # Lido (if deployed)
+            "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",  # Lido stETH
+            "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",  # Lido wstETH
+            
+            # Rocket Pool (if deployed)
+            "0xae78736cd615f374d3085123a210448e74fc6393",  # Rocket Pool rETH
+            
+            # Frax Finance (if deployed)
+            "0x853d955acef822db058eb8505911ed77f175b99e",  # FRAX Stablecoin
+            "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",  # FXS Token
+            
+            # Convex Finance (if deployed)
+            "0xf403c135812408bfbe8713b5a23a04b3d48aae31",  # Convex Booster
+            
+            # Stargate Finance (Cross-chain bridge)
+            "0x8731d54e9d02c286767d56ac03e8037c07e01e98",  # Stargate Router
+            
+            # LayerZero (Cross-chain protocol)
+            "0x66a71dcef29a0ffbdbe3c6a460a3b5bc225cd675",  # LayerZero Endpoint
+            
+            # Hop Protocol (Cross-chain bridge)
+            "0x3666f603cc164936c1b87e207f36beba4ac5f18a",  # Hop L2 Bridge
+            
+            # Across Protocol (Cross-chain bridge)
+            "0xc186fa914353c44b2e33ebe05f21846f1048beda",  # Across Spoke Pool
+            
+            # Celer Network (Cross-chain bridge)
+            "0x5427fefa711eff984124bfbb1ab6fbf5e3da1820",  # Celer cBridge
+            
+            # Multichain (Cross-chain bridge)
+            "0x6b7a87899490ece95443e979ca9485cbe7e71522",  # Multichain Router
+            
+            # Synapse Protocol (Cross-chain bridge)
+            "0x2796317b0ff8538f253012862c06787adfb8ceb6",  # Synapse Bridge
+            
+            # Socket Protocol (Cross-chain bridge)
+            "0x3a23f943181408eac424116af7b7790c94cb97a5",  # Socket Gateway
+            
+            # Wormhole (Cross-chain bridge)
+            "0x98f3c9e6e3face36baad05fe09d375ef1464288b",  # Wormhole Core Bridge
+            
+            # Additional Base-specific protocols (add as they become available)
+            # These would be Base-native protocols that become established
+        }
+
+    def _get_known_defi_categories(self) -> dict:
+        """
+        Categorize known protocols for better risk assessment
+        """
+        return {
+            "core_infrastructure": {
+                "0x4200000000000000000000000000000000000006",  # WETH9
+                "0x4200000000000000000000000000000000000010",  # L2StandardBridge
+                "0xca11bde05977b3631167028862be2a173976ca11",  # Multicall3
+            },
+            "major_dexes": {
+                "0x198ef79f1f515f02dfe9e3115ed9fc07183f02fc",  # Uniswap Universal Router
+                "0x2626664c2603336e57b271c5c0b26f421741e481",  # Uniswap SwapRouter
+                "0x827922686190790b37229fd06084350e74485b72",  # Aerodrome Router
+                "0x1111111254eeb25477b68fb85ed929f73a960582",  # 1inch Router
+            },
+            "lending_protocols": {
+                "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",  # Morpho Blue
+                "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9",  # Aave (if deployed)
+            },
+            "nft_marketplaces": {
+                "0x00000000000001ad428e4906ae43d8f9852d0dd6",  # OpenSea Seaport
+                "0x7c74dfe39976dc395529c14e54a597809980e01c",  # Zora
+            },
+            "bridges": {
+                "0x3154cf16ccdb4c6d922629664174b904d80f2c35",  # Base L1 Bridge
+                "0x8731d54e9d02c286767d56ac03e8037c07e01e98",  # Stargate
+                "0x66a71dcef29a0ffbdbe3c6a460a3b5bc225cd675",  # LayerZero
+            }
+        }
+
+# ============================================================================
+# TRANSACTION ANALYZER CLASS
+# ============================================================================
+
+class TransactionAnalyzer:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({'User-Agent': 'WalletSecurityAnalyzer/1.0'})
+        self.risk_scorer = RiskScorer()
+
+    @lru_cache(maxsize=Config.CACHE_SIZE)
+    def get_transactions_cached(self, address: str) -> list:
+        """Cache results to avoid repeated API calls"""
+        return self.get_all_transactions_robust(address)
+
+    def get_all_transactions_robust(self, address: str) -> list:
+        """Robust transaction fetching with retries and pagination"""
+        for attempt in range(Config.MAX_RETRIES):
+            try:
+                # Add pagination for large wallets
+                all_transactions = []
+                page = 1
+                
+                while len(all_transactions) < Config.MAX_TRANSACTIONS:
+                    params = {
+                        "module": "account",
+                        "action": "txlist",
+                        "address": address,
+                        "page": page,
+                        "offset": 1000,
+                        "sort": "desc"
+                    }
+                    
+                    response = self.session.get(
+                        "https://base.blockscout.com/api",
+                        params=params,
+                        timeout=Config.REQUEST_TIMEOUT
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get('status') == "1":
+                            transactions = data.get('result', [])
+                            if not transactions:
+                                break
+                            all_transactions.extend(transactions)
+                            page += 1
+                            time.sleep(Config.RATE_LIMIT_DELAY)
+                        else:
+                            break
+                    else:
+                        raise requests.RequestException(f"HTTP {response.status_code}")
+                        
+                return all_transactions[:Config.MAX_TRANSACTIONS]
+                
+            except Exception as e:
+                if attempt == Config.MAX_RETRIES - 1:
+                    print(f"Failed after {Config.MAX_RETRIES} attempts: {e}")
+                    return []
+                time.sleep(2 ** attempt)  # Exponential backoff
+
+    def analyze_approval_amount(self, amount_hex: str) -> dict:
+        """More accurate unlimited approval detection"""
+        try:
+            amount = int(amount_hex, 16)
+            max_uint256 = 2**256 - 1
+            
+            # Multiple thresholds for better accuracy
+            if amount >= max_uint256:
+                return {"is_unlimited": True, "risk_score": 50}
+            elif amount >= max_uint256 * 0.99:  # Very close to max
+                return {"is_unlimited": True, "risk_score": 45}
+            elif amount > 10**30:  # Extremely large
+                return {"is_unlimited": False, "risk_score": 30}
+            elif amount > 10**24:  # Very large
+                return {"is_unlimited": False, "risk_score": 20}
+            else:
+                return {"is_unlimited": False, "risk_score": 0}
+        except:
+            return {"is_unlimited": False, "risk_score": 5}
+
+    def get_contract_info(self, address: str) -> dict:
+        """Get contract verification status from BaseScan"""
+        try:
+            url = "https://api.basescan.org/api"
+            params = {
+                "module": "contract",
+                "action": "getsourcecode",
+                "address": address
+            }
+            response = self.session.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            if data.get('status') == '1' and data.get('result'):
+                contract_info = data['result'][0]
+                return {
+                    "is_verified": contract_info.get('SourceCode') != '',
+                    "contract_name": contract_info.get('ContractName', ''),
+                    "is_proxy": 'proxy' in contract_info.get('Implementation', '').lower()
+                }
+        except:
+            pass
+        return {"is_verified": False, "contract_name": "", "is_proxy": False}
+
+    async def get_contract_info_async(self, session: aiohttp.ClientSession, address: str) -> dict:
+        """Async contract verification call"""
+        try:
+            url = "https://api.basescan.org/api"
+            params = {
+                "module": "contract",
+                "action": "getsourcecode",
+                "address": address
+            }
+            async with session.get(url, params=params, timeout=10) as response:
+                data = await response.json()
+                
+                if data.get('status') == '1' and data.get('result'):
+                    contract_info = data['result'][0]
+                    return {
+                        "is_verified": contract_info.get('SourceCode') != '',
+                        "contract_name": contract_info.get('ContractName', ''),
+                        "is_proxy": 'proxy' in contract_info.get('Implementation', '').lower()
+                    }
+        except:
+            pass
+        return {"is_verified": False, "contract_name": "", "is_proxy": False}
+
+    async def get_contract_info_batch(self, addresses: List[str]) -> Dict[str, dict]:
+        """Batch contract verification calls"""
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.get_contract_info_async(session, addr) for addr in addresses]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        return dict(zip(addresses, results))
+
+    @lru_cache(maxsize=5000)
+    def get_contract_info_cached(self, address: str, ttl_hours: int = 24) -> dict:
+        """Cache contract verification for 24 hours"""
+        return self.get_contract_info(address)
+
+    def get_contract_verification_status(self, address: str) -> bool:
+        """Check if contract is verified (implement with actual API call)"""
+        contract_info = self.get_contract_info_cached(address)
+        return contract_info["is_verified"]
+
+    async def analyze_single_transaction(self, tx: dict, user_address: str) -> dict:
+        """Analyze a single transaction asynchronously"""
+        if tx.get('from', '').lower() != user_address.lower():
+            return None
+            
+        to_address = tx.get('to', '').lower()
+        input_data = tx.get('input', '0x')
+        
+        if len(input_data) < 10:
+            return None
+            
+        func_signature = input_data[:10]
+        
+        # Check for dangerous signatures
+        if func_signature in self.risk_scorer.base_risks:
+            # Analyze the specific signature for additional risk factors
+            additional_analysis = self.analyze_signature_risk_enhanced(input_data, to_address, func_signature)
+            
+            # Calculate sophisticated risk score
+            risk_score, risk_level = self.risk_scorer.calculate_sophisticated_risk_score({
+                'function_signature': func_signature,
+                'risk_factors': additional_analysis['factors'],
+                'timestamp': int(tx.get('timeStamp', 0)),
+                'spender_address': additional_analysis.get('spender_address', ''),
+                'is_unlimited': additional_analysis.get('is_unlimited', False),
+                'contract_verified': self.get_contract_verification_status(to_address),
+                'transaction_count': 1  # Will be aggregated later
+            })
+            
+            # Only include if risk score is meaningful (above threshold)
+            if risk_score >= 15:  # Lower threshold, more nuanced
+                return {
+                    'contract_address': to_address,
+                    'function_signature': func_signature,
+                    'function_name': get_function_name(func_signature),
+                    'risk_level': risk_level,
+                    'risk_score': risk_score,
+                    'risk_factors': additional_analysis['factors'],
+                    'transaction_hash': tx.get('hash', ''),
+                    'timestamp': int(tx.get('timeStamp', 0)),
+                    'gas_used': int(tx.get('gasUsed', 0)),
+                    'approval_amount': additional_analysis.get('approval_amount', 'Unknown'),
+                    'spender_address': additional_analysis.get('spender_address', 'Unknown'),
+                    'is_unlimited': additional_analysis.get('is_unlimited', False),
+                    'confidence_level': calculate_confidence_level(additional_analysis)
+                }
+        
+        return None
+
+    def analyze_signature_risk_enhanced(self, input_data: str, contract_address: str, func_signature: str) -> dict:
+        """Enhanced signature risk analysis with better accuracy"""
+        additional_risk = 0
+        factors = []
+        approval_amount = "Unknown"
+        spender_address = "Unknown"
+        is_unlimited = False
+        
+        try:
+            if func_signature == "0x095ea7b3":  # approve
+                # Decode approval parameters
+                if len(input_data) >= 74:
+                    # Extract spender address (middle 32 bytes)
+                    spender_hex = input_data[34:74]
+                    spender_address = "0x" + spender_hex[-40:]
+                    
+                    # Extract amount (last 32 bytes)
+                    amount_hex = input_data[-64:]
+                    approval_analysis = self.analyze_approval_amount(amount_hex)
+                    approval_amount = amount_hex
+                    is_unlimited = approval_analysis['is_unlimited']
+                    additional_risk += approval_analysis['risk_score']
+                    
+                    if is_unlimited:
+                        factors.append("UNLIMITED_APPROVAL")
+                    elif approval_analysis['risk_score'] > 0:
+                        factors.append("VERY_LARGE_APPROVAL")
+                    
+                    # Check if spender is known malicious
+                    if is_known_malicious_spender(spender_address):
+                        additional_risk += 40
+                        factors.append("MALICIOUS_SPENDER")
+                    
+                    # Check for suspicious spender patterns
+                    if re.search(r'dead|0000|1111|2222|3333|4444|5555|6666|7777|8888|9999|aaaa|bbbb|cccc|dddd|eeee|ffff', spender_address):
+                        additional_risk += 25
+                        factors.append("SUSPICIOUS_SPENDER_ADDRESS")
+                    
+                    # Get contract info for additional risk assessment
+                    contract_info = self.get_contract_info(contract_address)
+                    if not contract_info['is_verified']:
+                        additional_risk += 15
+                        factors.append("UNVERIFIED_CONTRACT")
+                    if contract_info['is_proxy']:
+                        additional_risk += 10
+                        factors.append("PROXY_CONTRACT")
+            
+            elif func_signature == "0xa22cb465":  # setApprovalForAll
+                # Decode approval for all
+                if len(input_data) >= 74:
+                    # Extract operator address
+                    operator_hex = input_data[34:74]
+                    spender_address = "0x" + operator_hex[-40:]
+                    
+                    # Extract approval status (last 32 bytes)
+                    status_hex = input_data[-64:]
+                    status = int(status_hex, 16)
+                    
+                    if status == 1:  # Approved
+                        additional_risk += 25
+                        factors.append("NFT_APPROVAL_FOR_ALL")
+                        
+                        # Check if operator is suspicious
+                        if re.search(r'dead|0000|1111|2222|3333|4444|5555|6666|7777|8888|9999|aaaa|bbbb|cccc|dddd|eeee|ffff', spender_address):
+                            additional_risk += 20
+                            factors.append("SUSPICIOUS_NFT_OPERATOR")
+                        
+                        # Get contract info
+                        contract_info = self.get_contract_info(contract_address)
+                        if not contract_info['is_verified']:
+                            additional_risk += 15
+                            factors.append("UNVERIFIED_NFT_CONTRACT")
+            
+            elif func_signature == "0xd505accf":  # permit
+                # Gasless approvals are inherently risky
+                additional_risk += 15
+                factors.append("GASLESS_APPROVAL")
+                
+                # Try to decode permit parameters
+                if len(input_data) >= 200:
+                    # Extract owner, spender, value, deadline, v, r, s
+                    spender_hex = input_data[34:74]
+                    spender_address = "0x" + spender_hex[-40:]
+                    
+                    value_hex = input_data[74:138]
+                    approval_analysis = self.analyze_approval_amount(value_hex)
+                    approval_amount = value_hex
+                    is_unlimited = approval_analysis['is_unlimited']
+                    additional_risk += approval_analysis['risk_score']
+                    
+                    if is_unlimited:
+                        factors.append("UNLIMITED_GASLESS_APPROVAL")
+            
+            elif func_signature == "0xac9650d8":  # multicall
+                # Batch operations can be dangerous
+                additional_risk += 10
+                factors.append("BATCH_OPERATION")
+                
+                # Check for multiple dangerous calls
+                if input_data.count("0x095ea7b3") > 1:
+                    additional_risk += 20
+                    factors.append("MULTIPLE_APPROVALS_IN_BATCH")
+                
+                # Check for other dangerous patterns
+                dangerous_patterns = ["0xd505accf", "0xa22cb465", "0x40c10f19"]
+                for pattern in dangerous_patterns:
+                    if pattern in input_data:
+                        additional_risk += 15
+                        factors.append("MULTIPLE_DANGEROUS_CALLS")
+                        break
+        
+        except Exception as e:
+            factors.append(f"DECODE_ERROR: {str(e)}")
+        
+        return {
+            'additional_risk': additional_risk,
+            'factors': factors,
+            'approval_amount': approval_amount,
+            'spender_address': spender_address,
+            'is_unlimited': is_unlimited
+        }
+
+    def group_risky_signs_optimized(self, risky_signs: list) -> list:
+        """Optimized grouping with better performance"""
+        pattern_groups = defaultdict(lambda: {
+            'transaction_count': 0,
+            'max_risk_score': 0,
+            'risk_factors': set(),
+            'first_timestamp': float('inf'),
+            'last_timestamp': 0
+        })
+        
+        for sign in risky_signs:
+            pattern_key = f"{sign['function_signature']}_{sign['spender_address']}"
+            group = pattern_groups[pattern_key]
+            
+            # Update efficiently
+            group['transaction_count'] += 1
+            group['max_risk_score'] = max(group['max_risk_score'], sign['risk_score'])
+            group['risk_factors'].update(sign['risk_factors'])
+            group['first_timestamp'] = min(group['first_timestamp'], sign['timestamp'])
+            group['last_timestamp'] = max(group['last_timestamp'], sign['timestamp'])
+            
+            # Store first occurrence data
+            if group['transaction_count'] == 1:
+                group.update({
+                    'function_signature': sign['function_signature'],
+                    'function_name': sign['function_name'],
+                    'risk_level': sign['risk_level'],
+                    'contract_address': sign['contract_address'],
+                    'spender_address': sign['spender_address'],
+                    'approval_amount': sign['approval_amount'],
+                    'is_unlimited': sign['is_unlimited'],
+                    'example_transaction_hash': sign['transaction_hash']
+                })
+        
+        # Convert to final format with correct field names
+        return sorted([
+            {
+                'function_signature': group['function_signature'],
+                'function_name': group['function_name'],
+                'risk_level': group['risk_level'],
+                'risk_score': group['max_risk_score'],
+                'contract_address': group['contract_address'],
+                'spender_address': group['spender_address'],
+                'approval_amount': group['approval_amount'],
+                'is_unlimited': group['is_unlimited'],
+                'risk_factors': list(group['risk_factors']),
+                'transaction_count': group['transaction_count'],
+                'first_signature': int(group['first_timestamp']) if group['first_timestamp'] != float('inf') else 0,
+                'last_signature': int(group['last_timestamp']),
+                'example_transaction_hash': group['example_transaction_hash']
+            }
+            for group in pattern_groups.values()
+        ], key=lambda x: x['risk_score'], reverse=True)
+
+    def analyze_chunk(self, transactions: list, user_address: str) -> list:
+        """Analyze a chunk of transactions"""
+        chunk_results = []
+        for tx in transactions:
+            result = self.analyze_single_transaction_sync(tx, user_address)
+            if result:
+                chunk_results.append(result)
+        return chunk_results
+
+    def analyze_single_transaction_sync(self, tx: dict, user_address: str) -> dict:
+        """Synchronous version of analyze_single_transaction for parallel processing"""
+        if tx.get('from', '').lower() != user_address.lower():
+            return None
+            
+        to_address = tx.get('to', '').lower()
+        input_data = tx.get('input', '0x')
+        
+        if len(input_data) < 10:
+            return None
+            
+        func_signature = input_data[:10]
+        
+        # Check for dangerous signatures
+        if func_signature in self.risk_scorer.base_risks:
+            # Analyze the specific signature for additional risk factors
+            additional_analysis = self.analyze_signature_risk_enhanced(input_data, to_address, func_signature)
+            
+            # Calculate sophisticated risk score
+            risk_score, risk_level = self.risk_scorer.calculate_sophisticated_risk_score({
+                'function_signature': func_signature,
+                'risk_factors': additional_analysis['factors'],
+                'timestamp': int(tx.get('timeStamp', 0)),
+                'spender_address': additional_analysis.get('spender_address', ''),
+                'is_unlimited': additional_analysis.get('is_unlimited', False),
+                'contract_verified': self.get_contract_verification_status(to_address),
+                'transaction_count': 1  # Will be aggregated later
+            })
+            
+            # Only include if risk score is meaningful (above threshold)
+            if risk_score >= 15:  # Lower threshold, more nuanced
+                return {
+                    'contract_address': to_address,
+                    'function_signature': func_signature,
+                    'function_name': get_function_name(func_signature),
+                    'risk_level': risk_level,
+                    'risk_score': risk_score,
+                    'risk_factors': additional_analysis['factors'],
+                    'transaction_hash': tx.get('hash', ''),
+                    'timestamp': int(tx.get('timeStamp', 0)),
+                    'gas_used': int(tx.get('gasUsed', 0)),
+                    'approval_amount': additional_analysis.get('approval_amount', 'Unknown'),
+                    'spender_address': additional_analysis.get('spender_address', 'Unknown'),
+                    'is_unlimited': additional_analysis.get('is_unlimited', False),
+                    'confidence_level': calculate_confidence_level(additional_analysis)
+                }
+        
+        return None
+
+    def analyze_transactions_parallel(self, transactions: list, user_address: str) -> list:
+        """Process transactions in parallel chunks"""
+        from concurrent.futures import ThreadPoolExecutor
+        
+        chunk_size = 100
+        chunks = [transactions[i:i+chunk_size] for i in range(0, len(transactions), chunk_size)]
+        
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(self.analyze_chunk, chunk, user_address) for chunk in chunks]
+            results = []
+            for future in futures:
+                results.extend(future.result())
+        return results
+
+# ============================================================================
+# MAIN FUNCTIONS
+# ============================================================================
+
+# Global analyzer instance
+analyzer = TransactionAnalyzer()
+
+def get_risky_signs(address: str) -> dict:
+    """
+    Analyze wallet for risky signatures and approvals.
+    Focuses on dangerous approval patterns, unlimited approvals, and suspicious signatures.
+    Returns count and detailed analysis of risky signatures.
+    """
+    try:
+        # Use cached transaction fetching
+        transactions = analyzer.get_transactions_cached(address)
+        if not transactions:
+            return {"risky_signs": 0, "details": []}
+        
+        # Analyze for risky signatures and approvals
+        risky_signs = analyze_risky_signatures_optimized(transactions, address)
+        
+        # Group by unique patterns and get the most dangerous ones
+        unique_risky_patterns = analyzer.group_risky_signs_optimized(risky_signs)
+        
+        # Save detailed report to CSV
+        if unique_risky_patterns:
+            save_risky_signs_to_csv(address, unique_risky_patterns)
+        
+        return {
+            "risky_signs": len(unique_risky_patterns),
+            "details": unique_risky_patterns
+        }
+        
+    except Exception as e:
+        return {"risky_signs": 0, "error": str(e)}
+
+async def get_risky_signs_async(address: str) -> dict:
+    """
+    Async version of get_risky_signs with batch contract verification
+    """
+    try:
+        # Use cached transaction fetching
+        transactions = analyzer.get_transactions_cached(address)
+        if not transactions:
+            return {"risky_signs": 0, "details": []}
+        
+        # Extract unique contract addresses for batch verification
+        contract_addresses = set()
+        for tx in transactions:
+            if tx.get('to'):
+                contract_addresses.add(tx['to'].lower())
+        
+        # Batch verify contracts if we have many
+        if len(contract_addresses) > 10:
+            # This would be used in a future enhancement
+            # contract_info_batch = await analyzer.get_contract_info_batch(list(contract_addresses))
+            pass
+        
+        # Analyze for risky signatures and approvals
+        risky_signs = analyze_risky_signatures_optimized(transactions, address)
+        
+        # Group by unique patterns and get the most dangerous ones
+        unique_risky_patterns = analyzer.group_risky_signs_optimized(risky_signs)
+        
+        # Save detailed report to CSV
+        if unique_risky_patterns:
+            save_risky_signs_to_csv(address, unique_risky_patterns)
+        
+        return {
+            "risky_signs": len(unique_risky_patterns),
+            "details": unique_risky_patterns
+        }
+        
+    except Exception as e:
+        return {"risky_signs": 0, "error": str(e)}
+
+def analyze_risky_signatures_optimized(transactions: list, user_address: str) -> list:
+    """
+    Enhanced signature analysis with better risk scoring using parallel processing
+    """
+    # Use parallel processing for large transaction sets
+    if len(transactions) > 500:
+        return analyzer.analyze_transactions_parallel(transactions, user_address)
+    else:
+        # Use sequential processing for smaller sets
+        risky_signs = []
+        
+        for tx in transactions:
+            if tx.get('from', '').lower() != user_address.lower():
+                continue
+                
+            to_address = tx.get('to', '').lower()
+            input_data = tx.get('input', '0x')
+            
+            if len(input_data) < 10:
+                continue
+                
+            func_signature = input_data[:10]
+            
+            if func_signature in analyzer.risk_scorer.base_risks:
+                # Get basic signature info
+                signature_info = analyzer.analyze_signature_risk_enhanced(
+                    input_data, to_address, func_signature
+                )
+                
+                # Calculate sophisticated risk score
+                risk_score, risk_level = analyzer.risk_scorer.calculate_sophisticated_risk_score({
+                    'function_signature': func_signature,
+                    'risk_factors': signature_info['factors'],
+                    'timestamp': int(tx.get('timeStamp', 0)),
+                    'spender_address': signature_info.get('spender_address', ''),
+                    'is_unlimited': signature_info.get('is_unlimited', False),
+                    'contract_verified': analyzer.get_contract_verification_status(to_address),
+                    'transaction_count': 1  # Will be aggregated later
+                })
+                
+                # Only include if risk score is meaningful (above threshold)
+                if risk_score >= 15:  # Lower threshold, more nuanced
+                    risky_signs.append({
+                        'contract_address': to_address,
+                        'function_signature': func_signature,
+                        'function_name': get_function_name(func_signature),
+                        'risk_level': risk_level,
+                        'risk_score': risk_score,
+                        'risk_factors': signature_info['factors'],
+                        'transaction_hash': tx.get('hash', ''),
+                        'timestamp': int(tx.get('timeStamp', 0)),
+                        'approval_amount': signature_info.get('approval_amount', 'Unknown'),
+                        'spender_address': signature_info.get('spender_address', 'Unknown'),
+                        'is_unlimited': signature_info.get('is_unlimited', False),
+                        'confidence_level': calculate_confidence_level(signature_info)
+                    })
+        
+        return risky_signs
+
+def save_risky_signs_to_csv(address: str, risky_signs: List[Dict]):
+    """Save risky signs data to CSV file"""
+    try:
+        # Create data directory if it doesn't exist
+        data_dir = Path("data/security_reports")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"risky_signs_{address}_{timestamp}.csv"
+        filepath = data_dir / filename
+        
+        # Write to CSV
+        with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = [
+                'function_signature', 'function_name', 'risk_level', 'risk_score',
+                'contract_address', 'spender_address', 'approval_amount', 'is_unlimited',
+                'risk_factors', 'transaction_count', 'first_signature', 'last_signature',
+                'example_transaction_hash', 'confidence_level'
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            writer.writeheader()
+            for sign_data in risky_signs:
+                # Convert risk_factors list to string
+                sign_data_copy = sign_data.copy()
+                sign_data_copy['risk_factors'] = '; '.join(sign_data['risk_factors'])
+                writer.writerow(sign_data_copy)
+        
+    except Exception as e:
+        print(f"Error saving risky signs CSV: {e}")
+
+def get_contract_verification_status(address: str) -> bool:
+    """Check if contract is verified (implement with actual API call)"""
+    # Placeholder - implement with BaseScan API
+    return True  # Default to verified to avoid false positives
+
+def calculate_confidence_level(signature_info: dict) -> str:
+    """Calculate confidence in the risk assessment"""
+    factors_count = len(signature_info.get('factors', []))
+    
+    if factors_count >= 4:
+        return "HIGH"
+    elif factors_count >= 2:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+def get_function_name(signature: str) -> str:
+    """Get human-readable function name"""
+    names = {
+        "0x095ea7b3": "approve",
+        "0xd505accf": "permit",
+        "0xa22cb465": "setApprovalForAll",
+        "0xac9650d8": "multicall",
+        "0x1cff79cd": "execute",
+        "0x40c10f19": "mint",
+    }
+    return names.get(signature, "unknown")
+
+def is_known_malicious_spender(spender_address: str) -> bool:
+    """
+    Check if spender address is known to be malicious.
+    """
+    # In production, integrate with threat intelligence databases
+    known_malicious = [
+        "0x1234567890123456789012345678901234567890",
+        "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    ]
+    
+    return spender_address.lower() in [addr.lower() for addr in known_malicious]
+
+# ============================================================================
+# LEGACY FUNCTIONS (FOR BACKWARD COMPATIBILITY)
+# ============================================================================
+
+def get_all_transactions(address: str) -> list:
+    """Legacy function - use analyzer.get_transactions_cached instead"""
+    return analyzer.get_transactions_cached(address)
+
+def analyze_risky_signatures(transactions: list, user_address: str) -> list:
+    """Legacy function - use analyze_risky_signatures_optimized instead"""
+    return analyze_risky_signatures_optimized(transactions, user_address)
+
+def group_risky_signs_by_pattern(risky_signs: list) -> list:
+    """Legacy function - use analyzer.group_risky_signs_optimized instead"""
+    return analyzer.group_risky_signs_optimized(risky_signs)

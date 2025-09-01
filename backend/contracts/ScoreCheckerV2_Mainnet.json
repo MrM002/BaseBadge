@@ -1,0 +1,1394 @@
+{ 
+  "address": "0x461203d7137FdFA30907288656dBEB0f64408Fb9",
+  "implementation": "0x97AE9F69f01D2BAe2Fd8F9F3B0B9603ca792f6b7",
+  "chainId": 8453,
+  "network": "base-mainnet",
+  "abi": [
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_maxFee",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "nonpayable",
+              "type": "constructor"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "target",
+                  "type": "address"
+                }
+              ],
+              "name": "AddressEmptyCode",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "ECDSAInvalidSignature",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "length",
+                  "type": "uint256"
+                }
+              ],
+              "name": "ECDSAInvalidSignatureLength",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "bytes32",
+                  "name": "s",
+                  "type": "bytes32"
+                }
+              ],
+              "name": "ECDSAInvalidSignatureS",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "implementation",
+                  "type": "address"
+                }
+              ],
+              "name": "ERC1967InvalidImplementation",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "ERC1967NonPayable",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "EnforcedPause",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "ExpectedPause",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "FailedInnerCall",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "maximum",
+                  "type": "uint256"
+                }
+              ],
+              "name": "IntervalTooLong",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "required_",
+                  "type": "uint256"
+                }
+              ],
+              "name": "InvalidFee",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "InvalidInitialization",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "expected",
+                  "type": "uint256"
+                }
+              ],
+              "name": "InvalidNonce",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "InvalidSigner",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "tokenId",
+                  "type": "uint256"
+                }
+              ],
+              "name": "InvalidTokenId",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "minimum",
+                  "type": "uint256"
+                }
+              ],
+              "name": "IssuedAtTooOld",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "current",
+                  "type": "uint256"
+                }
+              ],
+              "name": "NonMonotonicIssuedAt",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "NotInitializing",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "owner",
+                  "type": "address"
+                }
+              ],
+              "name": "OwnableInvalidOwner",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "account",
+                  "type": "address"
+                }
+              ],
+              "name": "OwnableUnauthorizedAccount",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "ReentrancyGuardReentrantCall",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "provided",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "maximum",
+                  "type": "uint256"
+                }
+              ],
+              "name": "ScoreTooHigh",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "SoulboundToken",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "age",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "maxAge",
+                  "type": "uint256"
+                }
+              ],
+              "name": "StaleSignature",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "timeRemaining",
+                  "type": "uint256"
+                }
+              ],
+              "name": "TooFrequent",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "UUPSUnauthorizedCallContext",
+              "type": "error"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "bytes32",
+                  "name": "slot",
+                  "type": "bytes32"
+                }
+              ],
+              "name": "UUPSUnsupportedProxiableUUID",
+              "type": "error"
+            },
+            {
+              "inputs": [],
+              "name": "ZeroAddress",
+              "type": "error"
+            },
+            {
+              "anonymous": false,
+              "inputs": [],
+              "name": "EIP712DomainChanged",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "to",
+                  "type": "address"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "EmergencyWithdraw",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "newFee",
+                  "type": "uint256"
+                }
+              ],
+              "name": "FeeUpdated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "uint64",
+                  "name": "version",
+                  "type": "uint64"
+                }
+              ],
+              "name": "Initialized",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "seconds_",
+                  "type": "uint256"
+                }
+              ],
+              "name": "MaxSigAgeUpdated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "seconds_",
+                  "type": "uint256"
+                }
+              ],
+              "name": "MinIntervalUpdated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "previousOwner",
+                  "type": "address"
+                },
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "newOwner",
+                  "type": "address"
+                }
+              ],
+              "name": "OwnershipTransferStarted",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "previousOwner",
+                  "type": "address"
+                },
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "newOwner",
+                  "type": "address"
+                }
+              ],
+              "name": "OwnershipTransferred",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "address",
+                  "name": "account",
+                  "type": "address"
+                }
+              ],
+              "name": "Paused",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "totalScore",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "fee",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                }
+              ],
+              "name": "ScoreCardUpdated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "score",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "fee",
+                  "type": "uint256"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                }
+              ],
+              "name": "ScoreChecked",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "address",
+                  "name": "signer",
+                  "type": "address"
+                }
+              ],
+              "name": "SignerUpdated",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": false,
+                  "internalType": "address",
+                  "name": "account",
+                  "type": "address"
+                }
+              ],
+              "name": "Unpaused",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "implementation",
+                  "type": "address"
+                }
+              ],
+              "name": "Upgraded",
+              "type": "event"
+            },
+            {
+              "anonymous": false,
+              "inputs": [
+                {
+                  "indexed": true,
+                  "internalType": "address",
+                  "name": "to",
+                  "type": "address"
+                },
+                {
+                  "indexed": false,
+                  "internalType": "uint256",
+                  "name": "amount",
+                  "type": "uint256"
+                }
+              ],
+              "name": "Withdraw",
+              "type": "event"
+            },
+            {
+              "stateMutability": "payable",
+              "type": "fallback"
+            },
+            {
+              "inputs": [],
+              "name": "DEFAULT_MAX_SIG_AGE",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "MAX_FEE",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "MAX_INTERVAL",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "MAX_SCORE",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "MIN_ISSUED_AT",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "UPGRADE_INTERFACE_VERSION",
+              "outputs": [
+                {
+                  "internalType": "string",
+                  "name": "",
+                  "type": "string"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "acceptOwnership",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "authorizedSigner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                }
+              ],
+              "name": "canSubmitScore",
+              "outputs": [
+                {
+                  "internalType": "bool",
+                  "name": "canSubmit",
+                  "type": "bool"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "timeRemaining",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "checkFee",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "eip712Domain",
+              "outputs": [
+                {
+                  "internalType": "bytes1",
+                  "name": "fields",
+                  "type": "bytes1"
+                },
+                {
+                  "internalType": "string",
+                  "name": "name",
+                  "type": "string"
+                },
+                {
+                  "internalType": "string",
+                  "name": "version",
+                  "type": "string"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "chainId",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "verifyingContract",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "salt",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint256[]",
+                  "name": "extensions",
+                  "type": "uint256[]"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "emergencyPause",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address payable",
+                  "name": "to",
+                  "type": "address"
+                }
+              ],
+              "name": "emergencyWithdraw",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                }
+              ],
+              "name": "getScore",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "score",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "timestamp",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                }
+              ],
+              "name": "getScoreCard",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "baseScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "securityScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "numberOfTransactions",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentStreak",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "maxStreak",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentBalance",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "avgBalanceLastMonth",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "gasPaid",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousTokens",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousContracts",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "dangerousInteractions",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousOilCompanies",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastCheckTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastIssuedAt",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "user",
+                  "type": "address"
+                }
+              ],
+              "name": "getUserData",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "score",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastCheckTime",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "lastIssuedAt",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "bytes32",
+                  "name": "structHash",
+                  "type": "bytes32"
+                }
+              ],
+              "name": "hashTypedDataV4",
+              "outputs": [
+                {
+                  "internalType": "bytes32",
+                  "name": "",
+                  "type": "bytes32"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_checkFee",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "address",
+                  "name": "_signer",
+                  "type": "address"
+                },
+                {
+                  "internalType": "address",
+                  "name": "_owner",
+                  "type": "address"
+                }
+              ],
+              "name": "initialize",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "maxSigAge",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "minInterval",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "name": "nonces",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "owner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "pause",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "paused",
+              "outputs": [
+                {
+                  "internalType": "bool",
+                  "name": "",
+                  "type": "bool"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "pendingOwner",
+              "outputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "proxiableUUID",
+              "outputs": [
+                {
+                  "internalType": "bytes32",
+                  "name": "",
+                  "type": "bytes32"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "renounceOwnership",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "_signer",
+                  "type": "address"
+                }
+              ],
+              "name": "setAuthorizedSigner",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_newFee",
+                  "type": "uint256"
+                }
+              ],
+              "name": "setCheckFee",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_seconds",
+                  "type": "uint256"
+                }
+              ],
+              "name": "setMaxSigAge",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "_seconds",
+                  "type": "uint256"
+                }
+              ],
+              "name": "setMinInterval",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "score",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "issuedAt",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "bytes",
+                  "name": "signature",
+                  "type": "bytes"
+                }
+              ],
+              "name": "submitScore",
+              "outputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "",
+                  "type": "uint256"
+                }
+              ],
+              "stateMutability": "payable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "uint256",
+                  "name": "totalScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "baseScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "securityScore",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "numberOfTransactions",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentStreak",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "maxStreak",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "currentBalance",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "avgBalanceLastMonth",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "gasPaid",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousTokens",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousContracts",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "dangerousInteractions",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "suspiciousOilCompanies",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "issuedAt",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "nonce",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "bytes",
+                  "name": "signature",
+                  "type": "bytes"
+                }
+              ],
+              "name": "submitScoreCard",
+              "outputs": [
+                {
+                  "internalType": "bool",
+                  "name": "",
+                  "type": "bool"
+                }
+              ],
+              "stateMutability": "payable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "newOwner",
+                  "type": "address"
+                }
+              ],
+              "name": "transferOwnership",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [],
+              "name": "unpause",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "newImplementation",
+                  "type": "address"
+                },
+                {
+                  "internalType": "bytes",
+                  "name": "data",
+                  "type": "bytes"
+                }
+              ],
+              "name": "upgradeToAndCall",
+              "outputs": [],
+              "stateMutability": "payable",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "name": "userData",
+              "outputs": [
+                {
+                  "internalType": "uint128",
+                  "name": "score",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "lastCheckTime",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "lastIssuedAt",
+                  "type": "uint64"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address",
+                  "name": "",
+                  "type": "address"
+                }
+              ],
+              "name": "userScoreCards",
+              "outputs": [
+                {
+                  "internalType": "uint128",
+                  "name": "totalScore",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint128",
+                  "name": "baseScore",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint128",
+                  "name": "baseScore",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "numberOfTransactions",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "currentStreak",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "maxStreak",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint128",
+                  "name": "currentBalance",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint128",
+                  "name": "avgBalanceLastMonth",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint128",
+                  "name": "gasPaid",
+                  "type": "uint128"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "suspiciousTokens",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "suspiciousContracts",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "dangerousInteractions",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "suspiciousOilCompanies",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "lastCheckTime",
+                  "type": "uint64"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "lastIssuedAt",
+                  "type": "uint64"
+                }
+              ],
+              "stateMutability": "view",
+              "type": "function"
+            },
+            {
+              "inputs": [
+                {
+                  "internalType": "address payable",
+                  "name": "to",
+                  "type": "address"
+                }
+              ],
+              "name": "withdrawFees",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            },
+            {
+              "stateMutability": "payable",
+              "type": "receive"
+            }
+          ]
+}
+

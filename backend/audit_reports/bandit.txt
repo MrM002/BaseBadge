@@ -1,0 +1,207 @@
+Run started:2025-08-30 08:56:23.348387
+
+Test results:
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: backend\api\routes.py:966:8
+965	                pass
+966	        except Exception:
+967	            pass
+968	
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:10:4
+9	    resp = client.get("/score", params={"address": "0x0000000000000000000000000000000000000000", "details": True})
+10	    assert resp.status_code in (200, 400)
+11	
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:16:4
+15	    r1 = client.get("/dashboard/summary", params={"address": addr})
+16	    assert r1.status_code in (200, 500)
+17	    # summary may 500 in CI if external calls fail; accept 500 as smoke tolerance
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:20:4
+19	    r2 = client.get("/badges", params={"address": addr})
+20	    assert r2.status_code in (200, 500)
+21	
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:26:4
+25	    get1 = client.get("/profile", params={"address": addr})
+26	    assert get1.status_code == 200
+27	    body = get1.json()
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:28:4
+27	    body = get1.json()
+28	    assert body["address"].lower() == addr.lower()
+29	
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:38:4
+37	    })
+38	    assert save.status_code == 200
+39	
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:41:4
+40	    get2 = client.get("/profile", params={"address": addr})
+41	    assert get2.status_code == 200
+42	    assert get2.json().get("username") == "tester"
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b101_assert_used.html
+   Location: backend\tests\test_api.py:42:4
+41	    assert get2.status_code == 200
+42	    assert get2.json().get("username") == "tester"
+43	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: backend\utils\wallet.py:109:4
+108	        cache[key] = (value, time.time())
+109	    except Exception:
+110	        pass
+111	
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b112_try_except_continue.html
+   Location: backend\utils\wallet.py:209:8
+208	                total_gas_paid += gas_used # * gas_price
+209	        except Exception:
+210	            continue
+211	    return total_gas_paid
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b112_try_except_continue.html
+   Location: backend\utils\wallet.py:262:8
+261	            days.add(dt.date())
+262	        except Exception:
+263	            continue
+264	    if not days:
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b105_hardcoded_password_string.html
+   Location: backend\utils\wallet.py:565:30
+564	            # 6. Check for tokens with zero value transfers (potential honeypot)
+565	            if token_value == "0":
+566	                token_risk_score += 15  # Reduced from 20
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b105_hardcoded_password_string.html
+   Location: backend\utils\wallet.py:571:30
+570	            # Check for tokens with very low liquidity or suspicious transfer patterns
+571	            if token_value != "0" and int(token_value) < 1000000:  # Very small amounts
+572	                token_risk_score += 10
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: backend\utils\wallet.py:776:4
+775	        
+776	    except Exception as e:
+777	        pass  # Silent fail for clean output
+778	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: backend\utils\wallet.py:835:8
+834	                        return data.get('result', [])
+835	        except:
+836	            pass
+837	        return []
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b105_hardcoded_password_string.html
+   Location: backend\utils\wallet.py:1497:30
+1496	            # 7. Check for NFTs with zero value transfers (potential honeypot)
+1497	            if token_value == "0":
+1498	                nft_risk_score += 20
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '0'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b105_hardcoded_password_string.html
+   Location: backend\utils\wallet.py:1507:30
+1506	            # 9. Check for NFTs with very low liquidity or suspicious transfer patterns
+1507	            if token_value != "0" and int(token_value) < 1000000:  # Very small amounts
+1508	                nft_risk_score += 15
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 2727
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 18
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 4
+		High: 14
+Files skipped (0):

@@ -1,0 +1,325 @@
+/* ProfileCard CSS */
+.pc-card-wrapper {
+  position: relative;
+  width: 320px;
+  height: 480px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  margin: 0 auto;
+}
+
+.pc-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  overflow: visible;
+  transform: rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg));
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.320, 1);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Removed 3D transforms to eliminate front light effect */
+
+/* Light effect from BEHIND the card (not on top) */
+.pc-card::after {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  background: radial-gradient(
+    ellipse at var(--pointer-x, var(--pointer-y)),
+    rgba(59, 130, 246, 0.25) 0%,
+    rgba(147, 51, 234, 0.15) 25%,
+    rgba(236, 72, 153, 0.1) 50%,
+    transparent 75%
+  );
+  border-radius: inherit;
+  z-index: -2;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+.pc-card.active::after {
+  opacity: 1;
+}
+
+.pc-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--behind-gradient);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: var(--card-opacity, 0.8);
+  will-change: opacity;
+  transition: opacity 0.6s ease;
+}
+
+.pc-card.active::before {
+  opacity: 1;
+}
+
+.pc-inside {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(145deg, #0f172a, #1e293b, #334155);
+  border-radius: inherit;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  gap: 1.5rem;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Removed pc-shine to eliminate extra light effect from front */
+
+/* Removed pc-glare to eliminate ALL front light effects */
+
+/* Removed active pc-glare state */
+
+/* Profile Section */
+.pc-profile-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.pc-avatar-container {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: visible;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.pc-card.active .pc-avatar-container {
+  transform: scale(1.08);
+}
+
+/* Removed avatar container pseudo-elements for UserAvatar compatibility */
+
+/* Removed pc-main-avatar - using UserAvatar component instead */
+
+.pc-user-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+  word-break: break-word;
+  background: linear-gradient(135deg, #ffffff, #e0e7ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.pc-card.active .pc-user-name {
+  transform: none;
+}
+
+.pc-verification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pc-base-verify {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Score Section */
+.pc-score-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 280px;
+}
+
+.pc-score-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.pc-card.active .pc-score-title {
+  transform: none;
+}
+
+.pc-score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.pc-score-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.pc-score-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Large oriented logo background - smaller and lower */
+.pc-inside::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--icon);
+  background-size: 280px 280px;
+  background-position: 120% 40%;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  z-index: -1;
+  transform: rotate(-15deg);
+}
+
+/* Shiny text effect for logos */
+.pc-inside::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 25%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shiny-sweep 3s ease-in-out infinite;
+  z-index: -1;
+  opacity: 0.6;
+  mix-blend-mode: overlay;
+}
+
+/* Removed float-logos animation */
+
+@keyframes shiny-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .pc-card-wrapper {
+    width: 260px;
+    height: 400px;
+  }
+  
+  .pc-inside {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .pc-avatar-container {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .pc-user-name {
+    font-size: 1.125rem;
+  }
+  
+  .pc-score-title {
+    font-size: 1.375rem;
+  }
+  
+  .pc-score-item {
+    padding: 0.625rem 0.875rem;
+  }
+  
+  .pc-score-label {
+    font-size: 0.875rem;
+  }
+  
+  .pc-score-value {
+    font-size: 1.125rem;
+  }
+}
+
+/* Animation improvements */
+.pc-card-wrapper.active {
+  --card-opacity: 1;
+}
+
+.pc-card:hover {
+  box-shadow: 
+    0 40px 80px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(59, 130, 246, 0.2),
+    0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+/* Additional visual enhancements - like reactbits.dev */
+.pc-score-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px) translateZ(20px) rotateX(1deg);
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+  box-shadow: 
+    0 12px 30px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.pc-score-item {
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+  cursor: pointer;
+}
+
+.pc-base-verify:hover {
+  transform: scale(1.08) translateZ(5px);
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}

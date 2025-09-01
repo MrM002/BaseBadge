@@ -1,0 +1,393 @@
+import time
+import requests
+from typing import List, Dict, Tuple
+from pathlib import Path
+from functools import lru_cache
+
+def get_risky_contracts(address: str) -> int:
+    """
+    Enhanced contract risk analysis for Base network.
+    Analyzes transactions to find risky contracts that the address has interacted with.
+    
+    Args:
+        address (str): The wallet address to analyze
+        
+    Returns:
+        int: Number of risky contracts found
+    """
+    try:
+        # Get all transactions for the address
+        transactions = get_all_transactions(address)
+        
+        if not transactions:
+            return 0
+        
+        # Extract unique contract addresses from transactions
+        contract_addresses = extract_contract_interactions(transactions, address)
+        
+        if not contract_addresses:
+            return 0
+        
+        print(f"Found {len(contract_addresses)} contract interactions for {address}")
+        
+        # Analyze each contract for risk
+        risky_count = 0
+        risky_contracts_list = []
+        
+        for contract_addr in contract_addresses:
+            risk_assessment = analyze_contract_risk_base(contract_addr)
+            
+            # Consider contract risky if risk_score >= 25
+            if risk_assessment['risk_score'] >= 25:
+                risky_count += 1
+                risky_contracts_list.append(contract_addr)
+                print(f"Risky contract found: {contract_addr} (score: {risk_assessment['risk_score']})")
+        
+        # Quick validation of results
+        if risky_contracts_list:
+            validation = validate_results_quick(risky_contracts_list)
+            print(f"Validation: {validation['verified_count']} verified, {len(validation['suspicious_patterns'])} suspicious patterns")
+        
+        return risky_count
+        
+    except Exception as e:
+        print(f"Error in get_risky_contracts: {e}")
+        return 0
+
+@lru_cache(maxsize=100)
+def get_contract_info_cached(contract_addr: str) -> dict:
+    """Cache contract info to avoid repeated API calls"""
+    try:
+        creation_time = get_contract_creation_time(contract_addr)
+        code_size = get_contract_code_size(contract_addr)
+        is_proxy = is_proxy_contract(contract_addr)
+        
+        return {
+            'creation_time': creation_time,
+            'code_size': code_size,
+            'is_proxy': is_proxy
+        }
+    except Exception as e:
+        print(f"Error getting cached contract info: {e}")
+        return {
+            'creation_time': None,
+            'code_size': 0,
+            'is_proxy': False
+        }
+
+def get_all_transactions(address: str) -> list:
+    """
+    Get all transactions for an address using Blockscout API for Base network.
+    """
+    try:
+        BLOCKSCOUT_BASE = "https://base.blockscout.com/api"
+        txs = []
+        page = 1
+        offset = 500  # Reduced for faster processing
+        
+        while True:
+            params = {
+                "module": "account",
+                "action": "txlist",
+                "address": address,
+                "startblock": 0,
+                "endblock": 99999999,
+                "page": page,
+                "offset": offset,
+                "sort": "desc"  # Get recent transactions first
+            }
+            
+            # Increased timeout and added retry mechanism
+            for attempt in range(3):
+                try:
+                    response = requests.get(BLOCKSCOUT_BASE, params=params, timeout=30)
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except requests.exceptions.Timeout:
+                    if attempt == 2:  # Last attempt
+                        print(f"Timeout after 3 attempts for {address}")
+                        return txs
+                    print(f"Timeout attempt {attempt + 1}, retrying...")
+                    time.sleep(1)
+                except Exception as e:
+                    print(f"Error fetching transactions: {e}")
+                    return txs
+            
+            if data.get('status') != "1":
+                print(f"API error: {data.get('message', 'Unknown error')}")
+                break
+                
+            page_txs = data.get('result', [])
+            if not page_txs:
+                break
+                
+            txs.extend(page_txs)
+            
+            # Limit to first 2 pages for performance
+            if page >= 2 or len(page_txs) < offset:
+                break
+                
+            page += 1
+            
+            # Add delay between API calls to respect rate limits
+            time.sleep(0.1)  # 100ms delay between requests
+            
+        print(f"Fetched {len(txs)} transactions for {address}")
+        return txs
+        
+    except Exception as e:
+        print(f"Error fetching transactions: {e}")
+        return []
+
+def extract_contract_interactions(transactions: list, user_address: str) -> set:
+    """
+    Extract unique contract addresses from transactions.
+    """
+    contract_addresses = set()
+    
+    for tx in transactions:
+        to_address = tx.get('to', '').lower().strip()
+        
+        # Check if it's a contract interaction (not just a transfer)
+        if (to_address and 
+            to_address != '0x' and 
+            to_address != user_address.lower() and
+            tx.get('input', '0x') != '0x'):  # Has input data = contract interaction
+            
+            contract_addresses.add(to_address)
+    
+    return contract_addresses
+
+def analyze_contract_risk_base(contract_addr: str) -> dict:
+    """
+    Base-specific contract risk analysis with enhanced checks.
+    """
+    risk_score = 0
+    risk_factors = []
+    
+    try:
+        # Get cached contract info
+        contract_info = get_contract_info_cached(contract_addr)
+        
+        # 1. Contract verification status (Base-specific) - Higher penalty
+        if not is_contract_verified_basescan(contract_addr):
+            risk_score += 30  # Increased from 15
+            risk_factors.append("UNVERIFIED_CONTRACT")
+        
+        # 2. Contract code size analysis
+        code_size = contract_info.get('code_size', 0)
+        if code_size < 100:  # Very small bytecode
+            risk_score += 20
+            risk_factors.append("MINIMAL_CODE")
+        
+        # 3. Proxy contract detection
+        if contract_info.get('is_proxy', False):
+            risk_score += 15
+            risk_factors.append("PROXY_CONTRACT")
+        
+        # 4. Contract age analysis (more nuanced)
+        creation_time = contract_info.get('creation_time')
+        if creation_time:
+            days_old = (time.time() - creation_time) / 86400
+            if days_old < 7:
+                risk_score += 15
+                risk_factors.append("VERY_NEW_CONTRACT")
+            elif days_old < 30:
+                risk_score += 8
+                risk_factors.append("NEW_CONTRACT")
+        
+        # 5. Transaction pattern analysis
+        tx_analysis = analyze_transaction_patterns(contract_addr)
+        if tx_analysis['suspicious_patterns']:
+            risk_score += 12
+            risk_factors.extend(tx_analysis['patterns'])
+        
+        # 6. Liquidity and trading analysis
+        liquidity_risk = analyze_liquidity_risk(contract_addr)
+        risk_score += liquidity_risk['score']
+        risk_factors.extend(liquidity_risk['factors'])
+        
+        # 7. Honeypot detection (Base-specific patterns)
+        if detect_honeypot_patterns_base(contract_addr):
+            risk_score += 25
+            risk_factors.append("HONEYPOT_DETECTED")
+        
+        return {
+            'contract_address': contract_addr,
+            'risk_score': min(risk_score, 100),  # Cap at 100
+            'risk_factors': risk_factors
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing contract {contract_addr}: {e}")
+        return {
+            'contract_address': contract_addr,
+            'risk_score': 0,
+            'risk_factors': ['ANALYSIS_ERROR']
+        }
+
+def validate_results_quick(risky_contracts: list) -> dict:
+    """Quick validation using multiple sources"""
+    validation = {
+        'verified_count': 0,
+        'suspicious_patterns': [],
+        'recommendations': []
+    }
+    
+    for contract in risky_contracts[:5]:  # Check first 5
+        # Cross-reference with BaseScan
+        if is_contract_verified_basescan(contract):
+            validation['verified_count'] += 1
+        
+        # Check creation date
+        creation_time = get_contract_creation_time(contract)
+        if creation_time and (time.time() - creation_time) < 86400:  # < 1 day
+            validation['suspicious_patterns'].append(f"{contract}: Very new")
+        
+        # Check code size
+        code_size = get_contract_code_size(contract)
+        if code_size < 100:
+            validation['suspicious_patterns'].append(f"{contract}: Minimal code")
+    
+    return validation
+
+def is_contract_verified_basescan(contract_addr: str) -> bool:
+    """
+    Check if contract is verified on BaseScan.
+    """
+    try:
+        # For now, return False for testing to see more risky contracts
+        # In production, this would use BaseScan API
+        return False
+    except:
+        return False
+
+def get_contract_creation_time(contract_addr: str) -> int:
+    """
+    Get contract creation timestamp.
+    """
+    try:
+        # Get first transaction of the contract
+        txs = get_all_transactions(contract_addr)
+        if txs:
+            # Sort by timestamp and get the earliest
+            sorted_txs = sorted(txs, key=lambda x: int(x.get('timeStamp', 0)))
+            return int(sorted_txs[0].get('timeStamp', 0))
+        return None
+    except:
+        return None
+
+def get_contract_code_size(contract_addr: str) -> int:
+    """
+    Get contract bytecode size.
+    """
+    try:
+        # For now, return a placeholder value
+        # In production, this would fetch actual bytecode size
+        return 500  # Placeholder
+    except:
+        return 0
+
+def is_proxy_contract(contract_addr: str) -> bool:
+    """
+    Check if contract is a proxy contract.
+    """
+    try:
+        # For now, return False
+        # In production, this would analyze contract bytecode for proxy patterns
+        return False
+    except:
+        return False
+
+def analyze_transaction_patterns(contract_addr: str) -> dict:
+    """
+    Analyze transaction patterns for suspicious behavior.
+    """
+    try:
+        txs = get_all_transactions(contract_addr)
+        
+        if len(txs) < 2:  # Reduced threshold
+            return {
+                'suspicious_patterns': True,
+                'patterns': ['LOW_TRANSACTION_COUNT']
+            }
+        
+        # Check for unusual patterns
+        patterns = []
+        
+        # Check for contracts with only incoming transactions (potential honeypot)
+        outgoing_txs = [tx for tx in txs if tx.get('from', '').lower() == contract_addr.lower()]
+        if len(outgoing_txs) == 0 and len(txs) > 3:  # Reduced threshold
+            patterns.append('NO_OUTGOING_TRANSACTIONS')
+        
+        # Check for contracts with very high transaction volume in short time
+        if len(txs) > 50:  # Reduced threshold
+            # Analyze time distribution
+            timestamps = [int(tx.get('timeStamp', 0)) for tx in txs]
+            if timestamps:
+                time_span = max(timestamps) - min(timestamps)
+                if time_span < 3600 and len(txs) > 20:  # Many txs in 1 hour
+                    patterns.append('HIGH_FREQUENCY_TRADING')
+        
+        return {
+            'suspicious_patterns': len(patterns) > 0,
+            'patterns': patterns
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing transaction patterns: {e}")
+        return {
+            'suspicious_patterns': False,
+            'patterns': []
+        }
+
+def analyze_liquidity_risk(contract_addr: str) -> dict:
+    """
+    Analyze liquidity risk factors.
+    """
+    try:
+        # For now, return basic analysis
+        # In production, this would integrate with DEX APIs
+        return {
+            'score': 0,
+            'factors': []
+        }
+    except:
+        return {
+            'score': 0,
+            'factors': ['LIQUIDITY_ANALYSIS_ERROR']
+        }
+
+def detect_honeypot_patterns_base(contract_addr: str) -> bool:
+    """
+    Detect honeypot patterns specific to Base network.
+    """
+    try:
+        # Basic honeypot detection
+        txs = get_all_transactions(contract_addr)
+        
+        if len(txs) < 3:  # Reduced threshold
+            return False
+        
+        # Check for contracts with only buys, no sells
+        buy_txs = []
+        sell_txs = []
+        
+        for tx in txs:
+            # This is a simplified check - in production would analyze function calls
+            if tx.get('input', '0x') != '0x':
+                # Has input data - could be a buy or sell
+                if 'transfer' in tx.get('input', '').lower():
+                    buy_txs.append(tx)
+                else:
+                    sell_txs.append(tx)
+        
+        # If many buys but no sells, potential honeypot
+        if len(buy_txs) > 5 and len(sell_txs) == 0:  # Reduced threshold
+            return True
+        
+        return False
+        
+    except:
+        return False
