@@ -53,7 +53,7 @@ BaseBadge/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/your-username/BaseBadge.git
+git clone https://github.com/MrM002/BaseBadge.git
 cd BaseBadge
 ```
 
@@ -82,25 +82,17 @@ cd onchain && forge build
 
 5. **Access the application**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- Backend API: http://localhost:8000
 - Smart Contracts: Deployed on Base network
 
 ## 📖 **Documentation**
 
-### **User Guides**
-- [Getting Started Guide](docs/user-guide.md)
-- [Wallet Connection](docs/wallet-setup.md)
-- [Reputation System](docs/reputation.md)
+See our [Documentation Index](DOCUMENTATION_INDEX.md) for complete documentation.
 
-### **Developer Documentation**
-- [API Reference](docs/api-reference.md)
-- [Smart Contract Docs](docs/smart-contracts.md)
-- [Frontend Components](docs/frontend-components.md)
-
-### **Security & Architecture**
-- [Security Overview](docs/security.md)
-- [System Architecture](docs/architecture.md)
-- [Audit Reports](docs/audits.md)
+### **Security & Development**
+- [Security Policy](SECURITY.md) - Project security policy
+- [Contributing Guide](docs/contributing.md) - Guidelines for contributing
+- [Security Guidelines](docs/security.md) - Security best practices
 
 ## 🔒 **Security**
 
@@ -125,12 +117,11 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🌐 **Community**
+## 🌐 **Contact & Community**
 
-- **Discord**: [Join our community](https://discord.gg/basebadge)
-- **Twitter**: [@BaseBadge](https://twitter.com/BaseBadge)
-- **Documentation**: [docs.basebadge.xyz](https://docs.basebadge.xyz)
-- **Website**: [basebadge.xyz](https://basebadge.xyz)
+- **GitHub**: [MrM002/BaseBadge](https://github.com/MrM002/BaseBadge)
+- **Issues & Bugs**: Submit via [GitHub Issues](https://github.com/MrM002/BaseBadge/issues)
+- **Security Concerns**: Use [GitHub Security Advisories](https://github.com/MrM002/BaseBadge/security/advisories/new)
 
 ## 📊 **Project Status**
 
