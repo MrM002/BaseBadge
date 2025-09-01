@@ -87,20 +87,48 @@ cd onchain && forge build
 
 ## 📖 **Documentation**
 
-### **User Guides**
-- [Getting Started Guide](docs/user-guide.md)
-- [Wallet Connection](docs/wallet-setup.md)
-- [Reputation System](docs/reputation.md)
+### Project Overview
+- [README](README.md) - Project introduction and overview
+- [Roadmap](ROADMAP.md) - Development timeline and future plans
+- [Security Overview](SECURITY_OVERVIEW.md) - Comprehensive security information
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Instructions for deploying the application
 
-### **Developer Documentation**
-- [API Reference](docs/api-reference.md)
-- [Smart Contract Docs](docs/smart-contracts.md)
-- [Frontend Components](docs/frontend-components.md)
+### Development Guides
+- [Contributing Guide](docs/contributing.md) - Guidelines for contributing to the project
+- [Security Guidelines](docs/security.md) - Security best practices for developers
 
-### **Security & Architecture**
-- [Security Overview](docs/security.md)
-- [System Architecture](docs/architecture.md)
-- [Audit Reports](docs/audits.md)
+## 🔧 Component Documentation
+
+### Frontend
+- [Frontend README](frontend/README.md) - Frontend application overview
+- [Frontend Security](frontend/SECURITY.md) - Frontend-specific security information
+
+### Backend
+- [Backend README](backend/README.md) - Backend API overview
+- [Backend Security](backend/SECURITY.md) - Backend-specific security information
+  
+### Smart Contracts
+- [Onchain README](onchain/README.md) - Smart contract overview
+- [Mainnet Deployment](onchain/MAINNET_DEPLOYMENT.md) - Mainnet deployment information
+- [V2 Upgrade Guide](onchain/SCORECARD_V2_UPGRADE.md) - Guide for V2 contract upgrade
+
+## 🔒 Security Documentation
+
+- [Security Policy](SECURITY.md) - Project security policy
+- [Security Fixes](SECURITY_FIXES.md) - Project security policy
+- [Security Audit Reports](onchain/audit_reports/AUDIT_SUMMARY.md) - Smart contract audit reports
+- [Security Badges](onchain/audit_reports/SECURITY_BADGES.md) - Security certification badges
+- [Quick Start Security](onchain/audit_reports/QUICK_START.md) - Quick start security guide
+
+## 📊 Technical Documentation
+
+- [Architecture Overview](docs/architecture.md) - System architecture documentation
+- [Data Models](docs/data-models.md) - Data model documentation
+- [Integration Guide](docs/integration.md) - Guide for integrating with BaseBadge
+
+## 🔄 Updates and Changes
+
+- [Updates Log](UPDATES.md) - Log of recent updates and changes
 
 ## 🔒 **Security**
 
@@ -127,10 +155,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🌐 **Community**
 
-- **Discord**: [Join our community](https://discord.gg/basebadge)
-- **Twitter**: [@BaseBadge](https://twitter.com/BaseBadge)
-- **Documentation**: [docs.basebadge.xyz](https://docs.basebadge.xyz)
-- **Website**: [basebadge.xyz](https://basebadge.xyz)
 
 ## 📊 **Project Status**
 
