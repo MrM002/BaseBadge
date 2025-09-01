@@ -87,12 +87,14 @@ cd onchain && forge build
 
 ## 📖 **Documentation**
 
+
 See our [Documentation Index](DOCUMENTATION_INDEX.md) for complete documentation.
 
 ### **Security & Development**
 - [Security Policy](SECURITY.md) - Project security policy
 - [Contributing Guide](docs/contributing.md) - Guidelines for contributing
 - [Security Guidelines](docs/security.md) - Security best practices
+
 
 ## 🔒 **Security**
 
@@ -122,6 +124,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **GitHub**: [MrM002/BaseBadge](https://github.com/MrM002/BaseBadge)
 - **Issues & Bugs**: Submit via [GitHub Issues](https://github.com/MrM002/BaseBadge/issues)
 - **Security Concerns**: Use [GitHub Security Advisories](https://github.com/MrM002/BaseBadge/security/advisories/new)
+ 
 
 ## 📊 **Project Status**
 
