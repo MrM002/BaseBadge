@@ -133,7 +133,7 @@ BaseBadge implements a comprehensive security strategy across all layers:
 6. **Lessons Learned** - Improve security
 
 ### **Contact Information**
-- **Security Team**: [security@basebadge.com](mailto:security@basebadge.com)
+- **Security Team**: [security@basebadge.com](mailto:0x0mr0m0@gmail.com)
 - **Emergency**: Immediate response required
 - **Reporting**: Security vulnerability disclosure
 
