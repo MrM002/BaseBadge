@@ -1,0 +1,319 @@
+{
+  "0x547112c6e3a76f5add91bbc56758a77c7bb9d83d": {
+    "lastScores": {
+      "total_score": 85.0,
+      "base_score": 67.0,
+      "security_score": 17.0,
+      "date": "2025-08-31T22:03:21",
+      "source": "onchain"
+    },
+    "scoreHistory": [
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 83.0,
+        "base_score": 66.33,
+        "security_score": 16.58,
+        "date": "2025-08-29T03:01:02"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 83.0,
+        "base_score": 66.33,
+        "security_score": 16.58,
+        "date": "2025-08-29T06:22:38"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 83.0,
+        "base_score": 66.33,
+        "security_score": 17.23,
+        "date": "2025-08-29T06:22:38"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 83.0,
+        "base_score": 66.33,
+        "security_score": 16.58,
+        "date": "2025-08-29T06:44:52"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 83.0,
+        "base_score": 66.33,
+        "security_score": 16.58,
+        "date": "2025-08-29T06:44:52"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 0.0,
+        "base_score": 67.0,
+        "security_score": 16.45,
+        "date": "2025-08-30T04:55:19"
+      },
+      {
+        "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+        "total_score": 0.0,
+        "base_score": 67.0,
+        "security_score": 17.05,
+        "date": "2025-08-30T05:28:55"
+      }
+    ],
+    "badges": [
+      {
+        "id": "first_score",
+        "name": "First Score",
+        "icon": "\ud83c\udfaf",
+        "description": "Calculated your first wallet score",
+        "earned": true
+      },
+      {
+        "id": "tx_10",
+        "name": "Onboarded",
+        "icon": "\ud83d\ude80",
+        "description": "Completed at least 10 transactions",
+        "earned": true
+      },
+      {
+        "id": "tx_100",
+        "name": "Active User",
+        "icon": "\u26a1",
+        "description": "Completed at least 100 transactions",
+        "earned": true
+      },
+      {
+        "id": "security_guard",
+        "name": "Security Guard",
+        "icon": "\ud83d\udee1\ufe0f",
+        "description": "Security score \u2265 22",
+        "earned": false
+      },
+      {
+        "id": "total_bronze",
+        "name": "Bronze Wallet",
+        "icon": "\ud83e\udd49",
+        "description": "Total score \u2265 60",
+        "earned": true
+      },
+      {
+        "id": "total_silver",
+        "name": "Silver Wallet",
+        "icon": "\ud83e\udd48",
+        "description": "Total score \u2265 75",
+        "earned": true
+      },
+      {
+        "id": "total_gold",
+        "name": "Gold Wallet",
+        "icon": "\ud83e\udd47",
+        "description": "Total score \u2265 85",
+        "earned": true
+      },
+      {
+        "id": "security_master",
+        "name": "Security Master",
+        "icon": "\ud83e\udde0",
+        "description": "Security score \u2265 24",
+        "earned": false
+      },
+      {
+        "id": "veteran",
+        "name": "Base Veteran",
+        "icon": "\ud83c\udfc6",
+        "description": "Wallet age \u2265 90 days",
+        "earned": false
+      }
+    ],
+    "last_updated": "2025-08-31T22:10:58.181174",
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d"
+  },
+  "0xe9b3b98a06f48fc044871f17b9f36c90d58d6454": {
+    "lastScores": {
+      "total_score": 69.0,
+      "base_score": 47.0,
+      "security_score": 22.0,
+      "date": "2025-08-30T10:10:21",
+      "source": "onchain"
+    },
+    "scoreHistory": [
+      {
+        "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+        "total_score": 68.0,
+        "base_score": 45.95,
+        "security_score": 21.97,
+        "date": "2025-08-29T01:35:00"
+      },
+      {
+        "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+        "total_score": 68.0,
+        "base_score": 45.95,
+        "security_score": 21.97,
+        "date": "2025-08-29T01:35:00"
+      },
+      {
+        "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+        "total_score": 68.0,
+        "base_score": 45.95,
+        "security_score": 21.97,
+        "date": "2025-08-29T07:00:12"
+      },
+      {
+        "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+        "total_score": 68.0,
+        "base_score": 45.95,
+        "security_score": 21.97,
+        "date": "2025-08-29T07:00:12"
+      },
+      {
+        "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+        "total_score": 68.0,
+        "base_score": 45.95,
+        "security_score": 21.97,
+        "date": "2025-08-29T07:00:12"
+      }
+    ],
+    "badges": [
+      {
+        "id": "first_score",
+        "name": "First Score",
+        "icon": "\ud83c\udfaf",
+        "description": "Calculated your first wallet score",
+        "earned": true
+      },
+      {
+        "id": "tx_10",
+        "name": "Onboarded",
+        "icon": "\ud83d\ude80",
+        "description": "Completed at least 10 transactions",
+        "earned": true
+      },
+      {
+        "id": "tx_100",
+        "name": "Active User",
+        "icon": "\u26a1",
+        "description": "Completed at least 100 transactions",
+        "earned": true
+      },
+      {
+        "id": "security_guard",
+        "name": "Security Guard",
+        "icon": "\ud83d\udee1\ufe0f",
+        "description": "Security score \u2265 22",
+        "earned": true
+      },
+      {
+        "id": "total_bronze",
+        "name": "Bronze Wallet",
+        "icon": "\ud83e\udd49",
+        "description": "Total score \u2265 60",
+        "earned": true
+      },
+      {
+        "id": "total_silver",
+        "name": "Silver Wallet",
+        "icon": "\ud83e\udd48",
+        "description": "Total score \u2265 75",
+        "earned": false
+      },
+      {
+        "id": "total_gold",
+        "name": "Gold Wallet",
+        "icon": "\ud83e\udd47",
+        "description": "Total score \u2265 85",
+        "earned": false
+      },
+      {
+        "id": "security_master",
+        "name": "Security Master",
+        "icon": "\ud83e\udde0",
+        "description": "Security score \u2265 24",
+        "earned": false
+      },
+      {
+        "id": "veteran",
+        "name": "Base Veteran",
+        "icon": "\ud83c\udfc6",
+        "description": "Wallet age \u2265 90 days",
+        "earned": false
+      }
+    ],
+    "last_updated": "2025-08-30T10:31:29.594243",
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454"
+  },
+  "0xb11c1a60d6a92fc7a00d9b1b602cc810bea1c680": {
+    "lastScores": {
+      "total_score": 39.0,
+      "base_score": 17.0,
+      "security_score": 22.0,
+      "date": "2025-08-30T09:10:03",
+      "source": "onchain"
+    },
+    "scoreHistory": [],
+    "badges": [
+      {
+        "id": "first_score",
+        "name": "First Score",
+        "icon": "\ud83c\udfaf",
+        "description": "Calculated your first wallet score",
+        "earned": true
+      },
+      {
+        "id": "tx_10",
+        "name": "Onboarded",
+        "icon": "\ud83d\ude80",
+        "description": "Completed at least 10 transactions",
+        "earned": true
+      },
+      {
+        "id": "tx_100",
+        "name": "Active User",
+        "icon": "\u26a1",
+        "description": "Completed at least 100 transactions",
+        "earned": false
+      },
+      {
+        "id": "security_guard",
+        "name": "Security Guard",
+        "icon": "\ud83d\udee1\ufe0f",
+        "description": "Security score \u2265 22",
+        "earned": true
+      },
+      {
+        "id": "total_bronze",
+        "name": "Bronze Wallet",
+        "icon": "\ud83e\udd49",
+        "description": "Total score \u2265 60",
+        "earned": false
+      },
+      {
+        "id": "total_silver",
+        "name": "Silver Wallet",
+        "icon": "\ud83e\udd48",
+        "description": "Total score \u2265 75",
+        "earned": false
+      },
+      {
+        "id": "total_gold",
+        "name": "Gold Wallet",
+        "icon": "\ud83e\udd47",
+        "description": "Total score \u2265 85",
+        "earned": false
+      },
+      {
+        "id": "security_master",
+        "name": "Security Master",
+        "icon": "\ud83e\udde0",
+        "description": "Security score \u2265 24",
+        "earned": false
+      },
+      {
+        "id": "veteran",
+        "name": "Base Veteran",
+        "icon": "\ud83c\udfc6",
+        "description": "Wallet age \u2265 90 days",
+        "earned": false
+      }
+    ],
+    "last_updated": "2025-08-30T09:11:55.065268",
+    "address": "0xb11c1A60d6a92fc7a00D9B1b602CC810bEA1C680"
+  }
+}

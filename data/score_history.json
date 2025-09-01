@@ -1,0 +1,86 @@
+[
+  {
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+    "total_score": 68.0,
+    "base_score": 45.95,
+    "security_score": 21.97,
+    "date": "2025-08-29T01:35:00"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 83.0,
+    "base_score": 66.33,
+    "security_score": 16.58,
+    "date": "2025-08-29T03:01:02"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 83.0,
+    "base_score": 66.33,
+    "security_score": 16.58,
+    "date": "2025-08-29T06:22:38"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 83.0,
+    "base_score": 66.33,
+    "security_score": 17.23,
+    "date": "2025-08-29T06:22:38"
+  },
+  {
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+    "total_score": 68.0,
+    "base_score": 45.95,
+    "security_score": 21.97,
+    "date": "2025-08-29T01:35:00"
+  },
+  {
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+    "total_score": 68.0,
+    "base_score": 45.95,
+    "security_score": 21.97,
+    "date": "2025-08-29T07:00:12"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 83.0,
+    "base_score": 66.33,
+    "security_score": 16.58,
+    "date": "2025-08-29T06:44:52"
+  },
+  {
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+    "total_score": 68.0,
+    "base_score": 45.95,
+    "security_score": 21.97,
+    "date": "2025-08-29T07:00:12"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 83.0,
+    "base_score": 66.33,
+    "security_score": 16.58,
+    "date": "2025-08-29T06:44:52"
+  },
+  {
+    "address": "0xE9B3B98A06F48fc044871f17B9F36C90d58D6454",
+    "total_score": 68.0,
+    "base_score": 45.95,
+    "security_score": 21.97,
+    "date": "2025-08-29T07:00:12"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 0.0,
+    "base_score": 67.0,
+    "security_score": 16.45,
+    "date": "2025-08-30T04:55:19"
+  },
+  {
+    "address": "0x547112C6E3A76f5Add91bbC56758A77C7BB9d83d",
+    "total_score": 0.0,
+    "base_score": 67.0,
+    "security_score": 17.05,
+    "date": "2025-08-30T05:28:55"
+  }
+]
