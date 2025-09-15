@@ -1,15 +1,17 @@
+// frontend/app/dashboard/score-card/page.tsx
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { TrustScoreCard } from '../../../components/TrustScoreCard'
 import { BackendStatus } from '../../../components/BackendStatus'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId, usePublicClient } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, usePublicClient } from 'wagmi'
 import { base } from 'viem/chains'
 import { formatEther } from 'viem'
 import { SCORE_CHECKER_V2_MAINNET_ABI } from '../../../components/abi/ScoreCheckerV2_MAINNET'
 import { useScore } from '../../../contexts/ScoreContext'
 import ProfileManager, { UserProfile } from '../../../utils/profileManager'
+import { useAuth } from '../../../contexts/AuthContext'
 
 interface TrustScoreData {
   address: string
@@ -46,19 +48,23 @@ export default function ScoreCardPage() {
   const [lastSubmittedHash, setLastSubmittedHash] = useState<`0x${string}` | undefined>(undefined)
   const [canShowCard, setCanShowCard] = useState<boolean>(false)
   const [transactionFailed, setTransactionFailed] = useState(false)
-  
+
   const { address, isConnected } = useAccount()
   const { switchChainAsync } = useSwitchChain()
-  const currentChainId = useChainId()
   const publicClient = usePublicClient({ chainId: base.id })
   const submittingRef = useRef(false)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
-  // ScoreContext for dashboard updates
+
+  // Dashboard context
   const { updateScores } = useScore()
 
-  // Clear data when wallet changes
+  // Auth (JWT)
+  const { token, isAuthenticated, login } = useAuth()
+  const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+
+  // Clear when wallet changes
   useEffect(() => {
     if (address) {
       setTrustScoreData(null)
@@ -66,72 +72,59 @@ export default function ScoreCardPage() {
     }
   }, [address])
 
-  // Listen to global sidebar toggle to ensure consistent visuals
+  // Ensure JWT ready
+  useEffect(() => {
+    if (isConnected && address && !isAuthenticated) {
+      login().catch(() => {})
+    }
+  }, [isConnected, address, isAuthenticated, login])
+
+  // Sidebar visual sync
   useEffect(() => {
     const handler = (e: any) => setIsSidebarOpen(Boolean(e?.detail?.open))
     window.addEventListener('bb-sidebar-toggle', handler)
     return () => window.removeEventListener('bb-sidebar-toggle', handler)
   }, [])
 
-  // CRITICAL: Load profile for avatar/name - ONLY after Score Card transaction from on-chain
+  // Load profile only after on-chain card exists
   useEffect(() => {
     const loadProfile = async () => {
-      if (!isConnected || !address) return
-      
-      // CRITICAL: Only load profile if user has completed Score Card transaction from on-chain
+      if (!isConnected || !address || !token) return
       if (!trustScoreData) {
-        console.log('🚫 Profile loading blocked - no Score Card data from on-chain yet')
         setProfile(null)
         return
       }
-      
       try {
-        const loadedProfile = await ProfileManager.loadProfile(address)
-        setProfile(loadedProfile)
-        console.log('✅ Profile loaded for Score Card:', loadedProfile)
-      } catch (error) {
-        console.error('💥 Error loading profile:', error)
+        const loaded = await ProfileManager.loadProfile(address, token || undefined)
+        setProfile(loaded)
+      } catch (e) {
+        console.error('Error loading profile:', e)
       }
     }
     loadProfile()
-  }, [isConnected, address, trustScoreData])
+  }, [isConnected, address, trustScoreData, token])
 
-  // Listen for profile updates from settings page
+  // React to profile updates
   useEffect(() => {
     const onProfileUpdated = () => {
-      console.log('🔄 Profile updated, reloading...')
-      if (isConnected && address && trustScoreData) {
-        // Reload profile when updated
-        const loadProfile = async () => {
-          try {
-            const loadedProfile = await ProfileManager.loadProfile(address)
-            setProfile(loadedProfile)
-          } catch (error) {
-            console.error('💥 Error reloading profile:', error)
-          }
-        }
-        loadProfile()
+      if (isConnected && address && token && trustScoreData) {
+        ProfileManager.loadProfile(address, token).then(setProfile).catch(e => console.error('Error reloading profile:', e))
       }
     }
-    
     const onProfileDataUpdated = (event: CustomEvent) => {
-      if (event.detail?.address === address) {
-        console.log('🔄 Profile data updated, updating immediately:', event.detail.profile)
-        const updatedProfile = event.detail.profile
-        setProfile(updatedProfile)
+      if ((event as any).detail?.address === address) {
+        setProfile((event as any).detail.profile)
       }
     }
-    
     window.addEventListener('profile-updated', onProfileUpdated as EventListener)
     window.addEventListener('profile-data-updated', onProfileDataUpdated as EventListener)
-    
     return () => {
       window.removeEventListener('profile-updated', onProfileUpdated as EventListener)
       window.removeEventListener('profile-data-updated', onProfileDataUpdated as EventListener)
     }
-  }, [isConnected, address, trustScoreData])
+  }, [isConnected, address, trustScoreData, token])
 
-  // Read on-chain fee to show under the main button
+  // On-chain fee
   const scoreCheckerAddress = (process.env.NEXT_PUBLIC_SCORE_CHECKER_ADDRESS_V2_MAINNET || '0x461203d7137FdFA30907288656dBEB0f64408Fb9') as `0x${string}`
   const { data: onchainFee } = useReadContract({
     address: scoreCheckerAddress && scoreCheckerAddress !== '0x' ? scoreCheckerAddress : undefined,
@@ -140,7 +133,7 @@ export default function ScoreCardPage() {
     chainId: base.id,
   })
 
-  // Cooldown: canSubmitScore(address)
+  // Cooldown (canSubmitScore)
   const { data: canSubmitData, refetch: refetchCanSubmit } = useReadContract({
     address: scoreCheckerAddress && scoreCheckerAddress !== '0x' && address ? scoreCheckerAddress : undefined,
     abi: SCORE_CHECKER_V2_MAINNET_ABI as any,
@@ -149,7 +142,6 @@ export default function ScoreCardPage() {
     chainId: base.id,
   })
 
-  // Parse cooldown result and start a local countdown
   useEffect(() => {
     let timer: any
     if (canSubmitData) {
@@ -173,10 +165,8 @@ export default function ScoreCardPage() {
         }
       } catch {}
     }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [canSubmitData])
+    return () => { if (timer) clearInterval(timer) }
+  }, [canSubmitData, refetchCanSubmit])
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60)
@@ -187,7 +177,6 @@ export default function ScoreCardPage() {
   const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract()
   const { isLoading: isConfirming, isSuccess, isError } = useWaitForTransactionReceipt({ hash: txHash })
 
-  // After mined, refresh cooldown and reveal card only for this tx
   useEffect(() => {
     if (txHash && lastSubmittedHash && txHash === lastSubmittedHash) {
       refetchCanSubmit()
@@ -196,7 +185,6 @@ export default function ScoreCardPage() {
     }
   }, [txHash, lastSubmittedHash, refetchCanSubmit])
 
-  // When a new tx starts, hide the card until mined
   useEffect(() => {
     if (txHash) {
       setLastSubmittedHash(txHash)
@@ -204,7 +192,6 @@ export default function ScoreCardPage() {
     }
   }, [txHash])
 
-  // If user rejects in wallet or tx fails early, reset UI quickly
   useEffect(() => {
     if (writeError) {
       submittingRef.current = false
@@ -213,29 +200,21 @@ export default function ScoreCardPage() {
       setTrustScoreData(null)
       setCanShowCard(false)
       try { resetWrite() } catch {}
-      // Remove the old background refresh event
     }
   }, [writeError, resetWrite])
 
-  // Handle transaction receipt
+  // After success -> read on-chain, update dashboard, refresh summary (JWT)
   useEffect(() => {
     if (lastSubmittedHash && isSuccess) {
-      // CRITICAL: Read score from on-chain after successful transaction
-      console.log('✅ Transaction confirmed - reading from on-chain')
-      ;(async () => {
+      (async () => {
         try {
-          const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-          
-          // Read the actual on-chain data
-          const onchainResponse = await fetch(`${api}/onchain/score?address=${encodeURIComponent(address!)}`)
-          if (!onchainResponse.ok) {
-            throw new Error('Failed to read on-chain score')
-          }
-          
+          // Public read (on-chain projection) - with auth headers
+          const onchainResponse = await fetch(`${api}/onchain/score?address=${encodeURIComponent(address!)}`, {
+            headers: authHeaders
+          })
+          if (!onchainResponse.ok) throw new Error('Failed to read on-chain score')
           const onchainData: TrustScoreData = await onchainResponse.json()
-          console.log('📊 On-chain score data:', onchainData)
-          
-          // Update UI with on-chain data
+
           setTrustScoreData(onchainData)
           setCanShowCard(true)
           setPendingScoreData(null)
@@ -243,45 +222,46 @@ export default function ScoreCardPage() {
           setTransactionFailed(false)
           refetchCanSubmit()
           submittingRef.current = false
-          
-          // Update dashboard data with on-chain values
+
+          // Update dashboard context
           await updateScores({
             total_score: onchainData.total_score,
             base_score: onchainData.base_score,
             security_score: onchainData.security_score,
             date: new Date().toISOString()
           })
-          
-          // Force dashboard to refresh from on-chain
-          await fetch(`${api}/dashboard/summary?address=${encodeURIComponent(address!)}`)
-          
-        } catch (error) {
-          console.error('Failed to read on-chain data:', error)
+
+          // Force secured summary refresh (JWT)
+          try {
+            await fetch(`${api}/dashboard/summary`, { headers: authHeaders })
+          } catch {}
+        } catch (err) {
+          console.error('Failed to read on-chain data:', err)
           setError('Transaction succeeded but failed to read on-chain data. Please refresh.')
           setCanShowCard(false)
           submittingRef.current = false
         }
       })()
     }
-  }, [lastSubmittedHash, isSuccess, refetchCanSubmit, updateScores, address])
+  }, [lastSubmittedHash, isSuccess, refetchCanSubmit, updateScores, address, api, token])
 
-  // Handle transaction failure
   useEffect(() => {
     if (lastSubmittedHash && isError) {
       setTransactionFailed(true)
       setLastSubmittedHash(undefined)
       submittingRef.current = false
-      // Don't disable the button, let user try again
     }
   }, [lastSubmittedHash, isError])
 
   const handleCheckScore = async () => {
-    if (!isConnected || !address) {
-      return
+    if (!isConnected || !address) return
+    if (isPending || isConfirming || submittingRef.current) return
+
+    // Ensure JWT
+    if (!isAuthenticated) {
+      try { await login() } catch { setError('Login failed'); return }
     }
-    if (isPending || isConfirming || submittingRef.current) {
-      return
-    }
+    if (!token) { setError('Missing auth token'); return }
 
     setIsLoading(true)
     setError(null)
@@ -291,7 +271,7 @@ export default function ScoreCardPage() {
     submittingRef.current = true
 
     try {
-      // Always auto-switch to Base Mainnet
+      // Switch to Base Mainnet
       try {
         await switchChainAsync({ chainId: base.id })
       } catch {
@@ -318,15 +298,15 @@ export default function ScoreCardPage() {
         }
       }
 
-      // Strong cooldown gate: read direct from chain to avoid stale state
+      // On-chain cooldown gate (fresh)
       if (publicClient) {
         try {
-                      const res = await publicClient.readContract({
-              address: scoreCheckerAddress,
-              abi: SCORE_CHECKER_V2_MAINNET_ABI as any,
-              functionName: 'canSubmitScore',
-              args: [address],
-            }) as unknown as [boolean, bigint]
+          const res = await publicClient.readContract({
+            address: scoreCheckerAddress,
+            abi: SCORE_CHECKER_V2_MAINNET_ABI as any,
+            functionName: 'canSubmitScore',
+            args: [address],
+          }) as unknown as [boolean, bigint]
           const flag = Boolean(res[0])
           const seconds = Number(res[1] ?? 0)
           setCanSubmit(flag)
@@ -341,26 +321,25 @@ export default function ScoreCardPage() {
           return
         }
       }
-      // must be on Base, and fee ready
+
+      // Fee required
       if (!onchainFee) throw new Error('Fetching fee...')
-      if (typeof window !== 'undefined') {
-        // @ts-ignore - some wallets may not expose chain id easily
-      }
-      // 1) fetch computed score (off-chain analysis)
-      const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${api}/score?address=${encodeURIComponent(address)}&details=true`)
-      if (!response.ok) throw new Error('Failed to fetch trust score')
-      const data = await response.json()
-      
-      // CRITICAL: DO NOT update dashboard data until transaction is confirmed
-      // Store data to reveal after tx mined
+
+      // 1) Compute score (secured via rewrite + JWT)
+      //    Use site-relative BFF path to avoid direct api.<domain> and CORS/WAF issues.
+      const freshToken = token || (typeof window !== 'undefined' ? localStorage.getItem('bb_token') : null)
+      const authz: HeadersInit = freshToken ? { Authorization: `Bearer ${freshToken}` } : {}
+      const scoreRes = await fetch(`/api/bff/score?details=true`, { headers: authz, cache: 'no-store' })
+      if (!scoreRes.ok) throw new Error('Failed to fetch trust score')
+      const data = await scoreRes.json()
+
       setPendingScoreData(data)
-      // normalize integer score for signing/contract
       const total = Math.round(Number(data?.total_score ?? 0))
       if (!Number.isFinite(total)) throw new Error('Invalid score')
 
-      // 2) get EIP-712 signature from backend for full score card
-      const queryParams = new URLSearchParams({
+      // 2) Get EIP-712 signature (secured via rewrite + JWT)
+      const query = new URLSearchParams({
+        // address is optional if backend binds JWT->address, but harmless to include:
         address: address,
         total_score: data.total_score.toString(),
         base_score: (data.base_score || data.base?.base_score || 0).toString(),
@@ -377,18 +356,15 @@ export default function ScoreCardPage() {
         suspicious_nfts: (data.security?.suspicious_nfts || 0).toString(),
       })
       
-      const sigRes = await fetch(`${api}/score/sign_card?${queryParams}`)
+      const sigRes = await fetch(`/api/bff/score/sign_card?` + query.toString(), { headers: authz, cache: 'no-store' })
       if (!sigRes.ok) throw new Error('Failed to sign score card')
       const sig = await sigRes.json()
-      // Ensure signature has 0x prefix
       const sigHex = (typeof sig.signature === 'string' && sig.signature.startsWith('0x'))
         ? sig.signature as `0x${string}`
         : (`0x${sig.signature}` as `0x${string}`)
 
-      // Ensure wallet is on Base Mainnet (double-check)
+      // 3) Submit on-chain
       try { await switchChainAsync({ chainId: base.id }) } catch {}
-
-      // 3) submit full score card on-chain
       writeContract({
         address: scoreCheckerAddress,
         abi: SCORE_CHECKER_V2_MAINNET_ABI as any,
@@ -445,24 +421,12 @@ export default function ScoreCardPage() {
 
   return (
     <div className={`relative min-h-screen ${isSidebarOpen ? 'pointer-events-none select-none' : ''}`}>
-      {/* Content Container - Background is now handled by LayoutBackgroundWrapper */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-20">
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="mb-12"
-          >
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-16">
+          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1, delay: 0.2 }} className="mb-12">
             <h1 className="text-6xl md:text-7xl font-bold mb-8">
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                Check Your
-              </span>
+              <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">Check Your</span>
               <span className="block text-white mt-2">Wallet Score</span>
             </h1>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
@@ -470,13 +434,8 @@ export default function ScoreCardPage() {
             </p>
           </motion.div>
 
-          {/* Transparent Check Score Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="mb-16"
-          >
+          {/* Button */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="mb-16">
             <motion.button
               ref={buttonRef}
               whileHover={{ scale: 1.02, y: -2 }}
@@ -485,48 +444,21 @@ export default function ScoreCardPage() {
               disabled={isLoading || (!canSubmit && !transactionFailed) || isPending || isConfirming}
               className="group relative text-white font-bold py-8 px-16 rounded-3xl text-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20"
             >
-              {/* Glow effect */}
-              <motion.div
-                className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-400/20 via-blue-500/20 to-purple-600/20 blur-xl"
-                animate={{ opacity: [0.5, 0.8, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              
-              {/* Shimmer effect */}
+              <motion.div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-cyan-400/20 via-blue-500/20 to-purple-600/20 blur-xl" animate={{ opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
               <motion.div
                 className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100"
-                style={{ 
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                  backgroundSize: '200% 100%'
-                }}
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)', backgroundSize: '200% 100%' }}
                 animate={{ backgroundPositionX: ['0%', '200%'] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
               />
-              
               <span className="relative z-10 flex items-center justify-center gap-3">
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-white"></div>
-                    Analyzing Wallet...
-                  </>
-                ) : (
-                  <>
-                    <span className="text-3xl">⚡</span>
-                    Check My Score
-                  </>
-                )}
+                {isLoading ? (<><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-white"></div>Analyzing Wallet...</>) : (<><span className="text-3xl">⚡</span>Check My Score</>)}
               </span>
             </motion.button>
           </motion.div>
 
-          {/* Enhanced Fee and Status Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="max-w-2xl mx-auto"
-          >
-            {/* Fee Info */}
+          {/* Fee & Status */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }} className="max-w-2xl mx-auto">
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6">
               <div className="flex items-center justify-center gap-3 mb-3">
                 <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
@@ -539,35 +471,21 @@ export default function ScoreCardPage() {
               ) : (
                 <p className="text-gray-300 text-center">Loading fee information...</p>
               )}
-              <p className="text-gray-300 text-sm text-center mt-2">
-                Small fee to deter spam and cover infrastructure costs
-              </p>
+              <p className="text-gray-300 text-sm text-center mt-2">Small fee to deter spam and cover infrastructure costs</p>
             </div>
 
-            {/* Cooldown Status */}
             {!canSubmit && cooldownSec > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 rounded-2xl p-4 text-center"
-              >
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 rounded-2xl p-4 text-center">
                 <div className="flex items-center justify-center gap-2 text-red-400">
                   <span className="text-xl">⏰</span>
                   <span className="font-medium">Cooldown Active</span>
                 </div>
-                <p className="text-red-300 mt-1">
-                  Please wait <span className="font-bold">{formatTime(cooldownSec)}</span> before the next check
-                </p>
+                <p className="text-red-300 mt-1">Please wait <span className="font-bold">{formatTime(cooldownSec)}</span> before the next check</p>
               </motion.div>
             )}
 
-            {/* Transaction Status */}
             {(txHash || isPending || isConfirming || isSuccess) && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-blue-500/10 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-4 text-center mt-4"
-              >
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-500/10 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-4 text-center mt-4">
                 <div className="flex items-center justify-center gap-2 text-blue-400 mb-2">
                   <span className="text-xl">🔄</span>
                   <span className="font-medium">
@@ -577,12 +495,7 @@ export default function ScoreCardPage() {
                   </span>
                 </div>
                 {txHash && (
-                  <a 
-                    className="text-blue-300 hover:text-blue-200 underline text-sm"
-                    href={`https://basescan.org/tx/${txHash}`} 
-                    target="_blank" 
-                    rel="noreferrer"
-                  >
+                  <a className="text-blue-300 hover:text-blue-200 underline text-sm" href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noreferrer">
                     View on Explorer
                   </a>
                 )}
@@ -592,23 +505,13 @@ export default function ScoreCardPage() {
         </motion.div>
 
         {/* Backend Status */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="mb-12 flex justify-center"
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.8 }} className="mb-12 flex justify-center">
           <BackendStatus />
         </motion.div>
 
-        {/* Trust Score Display */}
+        {/* Trust Score Card */}
         {canShowCard && trustScoreData && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="mb-12">
             <TrustScoreCard
               address={address!}
               totalScore={trustScoreData.total_score}
@@ -622,13 +525,9 @@ export default function ScoreCardPage() {
           </motion.div>
         )}
 
-        {/* Error Display */}
+        {/* Error */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="mb-12 max-w-2xl mx-auto"
-          >
+          <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="mb-12 max-w-2xl mx-auto">
             <div className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 rounded-2xl p-6">
               <div className="flex items-center justify-center gap-3 text-red-400 mb-3">
                 <span className="text-2xl">⚠️</span>
@@ -639,13 +538,9 @@ export default function ScoreCardPage() {
           </motion.div>
         )}
 
-        {/* Transaction Failed Display */}
+        {/* Tx Failed */}
         {transactionFailed && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="mb-12 max-w-2xl mx-auto"
-          >
+          <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="mb-12 max-w-2xl mx-auto">
             <div className="bg-orange-500/10 backdrop-blur-sm border border-orange-500/20 rounded-2xl p-6">
               <div className="flex items-center justify-center gap-3 text-orange-400 mb-3">
                 <span className="text-2xl">⚠️</span>
@@ -656,49 +551,31 @@ export default function ScoreCardPage() {
           </motion.div>
         )}
 
-        {/* Improved Help Section - Only mentioning features we actually have */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.0 }}
-          className="max-w-4xl mx-auto"
-        >
+        {/* Help */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.0 }} className="max-w-4xl mx-auto">
           <div className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-8">
             <div className="text-center mb-6">
               <h3 className="text-2xl font-bold text-white mb-3 flex items-center justify-center gap-3">
                 <span className="text-3xl">💡</span>
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                  How It Works
-                </span>
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">How It Works</span>
               </h3>
-              <p className="text-gray-300 text-lg">
-                Blockchain-based wallet reputation scoring system
-              </p>
+              <p className="text-gray-300 text-lg">Blockchain-based wallet reputation scoring system</p>
             </div>
-            
             <div className="grid md:grid-cols-3 gap-6">
               <div className="text-center p-4">
                 <div className="text-4xl mb-3">🔍</div>
                 <h4 className="text-white font-semibold mb-2">Analysis</h4>
-                <p className="text-gray-400 text-sm">
-                  Comprehensive analysis of your wallet's transaction history and activity patterns on Base Network
-                </p>
+                <p className="text-gray-400 text-sm">Comprehensive analysis of your wallet's transaction history and activity patterns on Base Network</p>
               </div>
-              
               <div className="text-center p-4">
                 <div className="text-4xl mb-3">📊</div>
                 <h4 className="text-white font-semibold mb-2">Scoring</h4>
-                <p className="text-gray-400 text-sm">
-                  Multi-factor reputation scoring based on transaction behavior, security patterns, and network activity
-                </p>
+                <p className="text-gray-400 text-sm">Multi-factor reputation scoring based on transaction behavior, security patterns, and network activity</p>
               </div>
-              
               <div className="text-center p-4">
                 <div className="text-4xl mb-3">🔗</div>
                 <h4 className="text-white font-semibold mb-2">On-Chain</h4>
-                <p className="text-gray-400 text-sm">
-                  Permanent on-chain recording of your reputation score for transparency and verification
-                </p>
+                <p className="text-gray-400 text-sm">Permanent on-chain recording of your reputation score for transparency and verification</p>
               </div>
             </div>
           </div>
@@ -706,4 +583,4 @@ export default function ScoreCardPage() {
       </div>
     </div>
   )
-} 
+}

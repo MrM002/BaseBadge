@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useAccount, useDisconnect } from 'wagmi'
+import { useDisconnect } from 'wagmi'
 import {
   ConnectWallet,
   Wallet,
@@ -18,15 +18,19 @@ import {
   EthBalance,
 } from '@coinbase/onchainkit/identity'
 
+import { useAuth } from '../contexts/AuthContext'
+
 export function WalletConnect() {
   const router = useRouter()
   const { disconnect } = useDisconnect()
+  const { logout } = useAuth()
+
 
   const handleDisconnect = () => {
-    disconnect()
+    try { logout() } catch {}
+    try { disconnect() } catch {}
     router.push('/')
   }
-
 
 
   return (

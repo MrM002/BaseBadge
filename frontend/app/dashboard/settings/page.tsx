@@ -6,9 +6,15 @@ import { useAccount } from 'wagmi'
 import { UserAvatar } from '../../../components/UserAvatar'
 import FaultyTerminal from '../../../components/FaultyTerminal'
 import ProfileManager, { UserProfile } from '../../../utils/profileManager'
+import { useAuth } from '../../../contexts/AuthContext'
 
 export default function SettingsPage() {
   const { address, isConnected } = useAccount()
+  const { isAuthenticated, token, login } = useAuth()
+  const getAuthHeaders = (): HeadersInit => {
+    const latest = token || (typeof window !== 'undefined' ? localStorage.getItem('bb_token') : null)
+    return latest ? { Authorization: `Bearer ${latest}` } : {}
+  }
   const [profile, setProfile] = useState<UserProfile>({
     username: '',
     name: '',
@@ -38,7 +44,10 @@ export default function SettingsPage() {
       setIsPrefetching(true)
       try {
         if (isConnected && address) {
-          const loadedProfile = await ProfileManager.loadProfile(address)
+          if (!isAuthenticated) {
+            try { await login() } catch {}
+          }
+          const loadedProfile = await ProfileManager.loadProfile(address, token || undefined)
           setProfile(loadedProfile)
           // Clear validation message when profile is loaded
           setValidationMessage(null)
@@ -50,7 +59,7 @@ export default function SettingsPage() {
       }
     }
     load()
-  }, [isConnected, address])
+  }, [isConnected, address, isAuthenticated, token, login])
 
   // Clear validation message when profile changes
   useEffect(() => {
@@ -110,8 +119,17 @@ export default function SettingsPage() {
           // We need to check with the backend if this wallet has a basename
           const checkBasename = async () => {
             try {
-              const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
-              const response = await fetch(`${api}/profile/sync_basename?address=${address}`)
+              const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+              if (!isAuthenticated) {
+                try { await login() } catch {
+                  setValidationMessage('Login required to sync Basename.')
+                  return
+                }
+              }
+              const response = await fetch(`${api}/profile/sync_basename?address=${address}`, {
+                headers: getAuthHeaders(),
+                cache: 'no-store',
+              })
               const data = await response.json()
               
               if (data.has_basename) {
@@ -154,13 +172,23 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!isConnected || !address) return
-    
+    let profileToSave = profile
+
     // Validate Basename Profile usage
     if (profile.useBasenameProfile && !profile.basename) {
       // Check with the backend if this wallet has a basename before showing error
       try {
-        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'
-        const response = await fetch(`${api}/profile/sync_basename?address=${address}`)
+        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        if (!isAuthenticated) {
+          try { await login() } catch {
+            setValidationMessage('Login required to save profile.')
+            return
+          }
+        }
+        const response = await fetch(`${api}/profile/sync_basename?address=${address}`, {
+          headers: getAuthHeaders(),
+          cache: 'no-store',
+        })
         const data = await response.json()
         
         if (data.has_basename) {
@@ -171,6 +199,7 @@ export default function SettingsPage() {
             basenameAvatar: data.basenameAvatar
           }
           setProfile(updatedProfile)
+          profileToSave = updatedProfile
           // Continue with save using updated profile
           // Now continue with the normal save flow with the updated profile
           // Instead of returning, we'll continue execution with the updated profile
@@ -188,10 +217,17 @@ export default function SettingsPage() {
     
     setIsLoading(true)
     try {
-      // Use the potentially updated profile from the basename check above
-      const profileToSave = profile.useBasenameProfile && profile.basename ? profile : profile
-      // Save profile using ProfileManager
-      const success = await ProfileManager.saveProfile(address, profileToSave)
+      // Ensure login (if needed)
+      if (!isAuthenticated) {
+        try { await login() } catch {
+          setValidationMessage('Login required to save profile.')
+          setIsLoading(false)
+          return
+        }
+      }
+      // fresh token for this call
+      const freshToken = token || (typeof window !== 'undefined' ? localStorage.getItem('bb_token') : null)
+      const success = await ProfileManager.saveProfile(address, profileToSave, freshToken || undefined)
       
       if (success) {
         setIsSaved(true)
@@ -201,9 +237,7 @@ export default function SettingsPage() {
         window.dispatchEvent(new Event('profile-updated'))
         
         // Also dispatch a custom event with the profile data
-        window.dispatchEvent(new CustomEvent('profile-data-updated', { 
-          detail: { profile, address } 
-        }))
+        window.dispatchEvent(new CustomEvent('profile-data-updated', { detail: { profile: profileToSave, address } }))
         
         console.log('✅ Profile saved successfully')
       } else {
@@ -217,9 +251,7 @@ export default function SettingsPage() {
       
       // Still notify components to refresh
       window.dispatchEvent(new Event('profile-updated'))
-      window.dispatchEvent(new CustomEvent('profile-data-updated', { 
-        detail: { profile, address } 
-      }))
+      window.dispatchEvent(new CustomEvent('profile-data-updated', { detail: { profile: profileToSave, address } }))
     } finally {
       setIsLoading(false)
     }

@@ -1,8 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import Image from 'next/image'
-
 interface UserProfileProps {
   address: string
   size?: 'sm' | 'md' | 'lg'
@@ -30,7 +27,7 @@ export function UserProfile({
       <div className={`${sizeClasses[size]} bg-gradient-to-br from-gamefi-blue to-gamefi-yellow rounded-full flex items-center justify-center font-bold text-black`}>
         {address.slice(2, 4).toUpperCase()}
       </div>
-      {showGlow && <div className={glowClasses}></div>}
+      {showGlow && <div className={`${glowClasses} pointer-events-none -z-10`}></div>}
     </div>
   )
-} 
+}
