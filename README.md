@@ -8,9 +8,9 @@ BaseBadge is a comprehensive decentralized identity and reputation management sy
 > During a security-hardening rollout (JWT authentication, nonce management, and rate limiting), **basebadge.com** briefly showed errors/partial functionality.  
 > The app has been **stable since Sep 14, 2025** and is currently live at **v0.8.5**.  
 > If you visited during that window, please consider a quick re-check now that everything is stable.  
-> I can provide deploy logs, timestamps, and commit IDs upon request.  
+> I can provide deploy logs, timestamps, and commit IDs upon request.
 > Contact: **0x0mr0m0@gmail.com** · Site: https://basebadge.com
-ص
+
 ## 🌟 **Features**
 
 ### **Core Features**
