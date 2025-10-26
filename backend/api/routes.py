@@ -1,21 +1,35 @@
-from fastapi import APIRouter, Query, HTTPException
-from fastapi.responses import JSONResponse
-from backend.services.scorer import calculate_score, derive_badges_from_score
-from backend.models.profile import UserProfile
-from backend.utils.wallet import resolve_input_basename_address, resolve_address_to_basename, resolve_basename_avatar
+
 import os
 import glob
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any
-from backend.core.config import settings
 from pathlib import Path as _Path
 from eth_account import Account
 from eth_account.messages import encode_typed_data
 from web3 import Web3
+from fastapi import APIRouter, Depends, Response ,Query, HTTPException
+from fastapi.responses import JSONResponse
+from backend.services.scorer import calculate_score, derive_badges_from_score
+from backend.models.profile import UserProfile
+from backend.utils.wallet import resolve_input_basename_address, resolve_address_to_basename, resolve_basename_avatar
+from backend.core.config import settings
+from backend.auth.deps import get_current_address, get_optional_address, require_admin
 
 router = APIRouter()
+
+# --- address validation helper ---
+def _validate_eth_address(addr: str) -> str:
+    if not isinstance(addr, str):
+        raise HTTPException(status_code=400, detail="Invalid address")
+    try:
+        is_addr = Web3.is_address(addr) if hasattr(Web3, "is_address") else Web3.isAddress(addr)
+    except Exception:
+        is_addr = False
+    if not is_addr:
+        raise HTTPException(status_code=400, detail="Invalid address")
+    return Web3.to_checksum_address(addr)
 
 # Load V2 contract ABI and address
 _CONTRACT_V2_JSON_PATH = _Path(__file__).parent.parent / "contracts" / "ScoreCheckerV2.json"
@@ -194,15 +208,28 @@ def update_wallets_analyzed_count():
     
     return current_total
 
+
 @router.get("/score")
 def score_endpoint(
     address: str = Query(..., description="The address to calculate the score for"),
-    details: bool = Query(True, description="Whether to include detailed information in the response")
+    details: bool = Query(True, description="Whether to include detailed information in the response"),
+    admin: str = Depends(require_admin),
 ):
+    # --- Auth & address enforcement ---
+    addr = _validate_eth_address(address)
+    
+    # Rate limiting for admin endpoints
+    if not hasattr(score_endpoint, '_last_call'):
+        score_endpoint._last_call = 0
+    import time
+    current_time = time.time()
+    if current_time - score_endpoint._last_call < 1:  # 1 second between calls
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    score_endpoint._last_call = current_time
+
     try:
-        result = calculate_score(address, include_details=details)
-        
-        # Update dashboard data for quick access
+        result = calculate_score(addr, include_details=details)
+
         if details:
             dashboard_data = {
                 "lastScores": {
@@ -211,34 +238,29 @@ def score_endpoint(
                     "security_score": result.security_score or (result.security.security_score if result.security else 0.0),
                     "date": datetime.now().isoformat(),
                 },
-                "scoreHistory": get_recent_history(address),
-                "badges": derive_badges_from_score(address, result),
+                "scoreHistory": get_recent_history(addr),
+                "badges": derive_badges_from_score(addr, result),
             }
-            save_user_dashboard(address, dashboard_data)
-            
-            # Update wallets analyzed count
+            save_user_dashboard(addr, dashboard_data)
+
             try:
                 persistent_stats = load_persistent_stats()
                 current_wallets = persistent_stats.get("wallets_analyzed", 0)
-                
-                # Check if this is a new wallet (not in recent history)
-                recent_history = get_recent_history(address, limit=1)
+                recent_history = get_recent_history(addr, limit=1)
                 if not recent_history:
-                    # New wallet, increment count
                     persistent_stats["wallets_analyzed"] = current_wallets + 1
                     persistent_stats["total_wallets_analyzed"] = current_wallets + 1
                     persistent_stats["last_updated"] = datetime.now().isoformat()
                     save_persistent_stats(persistent_stats)
-                    print(f"New wallet analyzed: {address}. Total wallets: {persistent_stats['wallets_analyzed']}")
+                    print(f"New wallet analyzed: {addr}. Total wallets: {persistent_stats['wallets_analyzed']}")
             except Exception as e:
                 print(f"Error updating wallets count: {e}")
-        
+
         return JSONResponse(content=result.model_dump(exclude_none=True))
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Failed to calculate score", "details": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"error": "Failed to calculate score", "details": str(e)})
+
+
 
 @router.get("/stats")
 def stats_endpoint():
@@ -504,24 +526,30 @@ def _read_onchain_score_card(address: str) -> Dict[str, Any] | None:
 
 
 @router.get("/onchain/score")
-def get_onchain_score(address: str = Query(..., description="Wallet address")):
+def get_onchain_score(
+    address: str = Query(..., description="Wallet address"),
+    current: str | None = Depends(get_optional_address),
+):
     """Get score data directly from on-chain. No fallback to backend calculations."""
+    # --- Auth & address enforcement  ---
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        addr = _validate_eth_address(address)
+        if addr.lower() != current.lower():
+            raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
+    else:
+        addr = _validate_eth_address(address)
+
+
     try:
-        # Read simple score
-        score_data = _read_onchain_last_score(address)
+        score_data = _read_onchain_last_score(addr)
         if not score_data:
-            return JSONResponse(
-                status_code=404,
-                content={"error": "No on-chain score found for this address"}
-            )
-        
-        # Read full score card
-        score_card = _read_onchain_score_card(address)
-        
+            return JSONResponse(status_code=404, content={"error": "No on-chain score found for this address"})
+        score_card = _read_onchain_score_card(addr)
         if score_card:
-            # Return full data if available
             return JSONResponse(content={
-                "address": address,
+                "address": addr,
                 "total_score": score_card["totalScore"],
                 "base_score": score_card["baseScore"],
                 "security_score": score_card["securityScore"],
@@ -529,11 +557,11 @@ def get_onchain_score(address: str = Query(..., description="Wallet address")):
                 "base": {
                     "tx_count": score_card["numberOfTransactions"],
                     "gas_used": score_card["gasPaid"],
-                    "current_balance": score_card["currentBalance"] / 1e18,  # Convert from wei
+                    "current_balance": score_card["currentBalance"] / 1e18,
                     "past_balance": score_card["avgBalanceLastMonth"] / 1e18,
                     "current_streak": score_card["currentStreak"],
                     "max_streak": score_card["maxStreak"],
-                    "age_days": 0,  # Not stored on-chain
+                    "age_days": 0,
                     "base_score": score_card["baseScore"]
                 },
                 "security": {
@@ -545,23 +573,15 @@ def get_onchain_score(address: str = Query(..., description="Wallet address")):
                 }
             })
         else:
-            # Return simple score if full card not available
-            # But still include empty base and security objects to prevent frontend errors
             return JSONResponse(content={
-                "address": address,
+                "address": addr,
                 "total_score": score_data["score"],
                 "timestamp": score_data["timestamp"],
                 "base_score": 0,
                 "security_score": 0,
                 "base": {
-                    "tx_count": 0,
-                    "gas_used": 0,
-                    "current_balance": 0,
-                    "past_balance": 0,
-                    "current_streak": 0,
-                    "max_streak": 0,
-                    "age_days": 0,
-                    "base_score": 0
+                    "tx_count": 0, "gas_used": 0, "current_balance": 0, "past_balance": 0,
+                    "current_streak": 0, "max_streak": 0, "age_days": 0, "base_score": 0
                 },
                 "security": {
                     "risky_tokens": 0,
@@ -571,35 +591,56 @@ def get_onchain_score(address: str = Query(..., description="Wallet address")):
                     "security_score": 0
                 }
             })
-            
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to read on-chain data: {str(e)}"}
-        )
+        return JSONResponse(status_code=500, content={"error": f"Failed to read on-chain data: {str(e)}"})
+
 
 
 @router.get("/dashboard/summary")
-def dashboard_summary(address: str = Query(...)):
-    """Get dashboard summary. ALWAYS reads from on-chain first."""
+def dashboard_summary(
+    address: str | None = Query(None),
+    current: str | None = Depends(get_optional_address),
+):
+    """
+    Get dashboard summary. ALWAYS reads from on-chain first.
+    Secured: requires Authorization and enforces address = token.sub (when ENFORCE_AUTH=true)
+    """
+    # --- Auth & address enforcement ---
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        if address is None:
+            addr = current
+        else:
+            addr_c = _validate_eth_address(address)
+            if addr_c.lower() != current.lower():
+                raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
+            addr = addr_c
+    else:
+        # Not recommended, but keeps backward-compat if ENFORCE_AUTH=false
+        if address:
+            addr = _validate_eth_address(address)
+        elif current:
+            addr = _validate_eth_address(current)
+        else:
+            raise HTTPException(status_code=400, detail="Address required")
+
     try:
         # ALWAYS try to read from on-chain first
-        onchain = _read_onchain_last_score(address)
-        onchain_card = _read_onchain_score_card(address)
-        
+        onchain = _read_onchain_last_score(addr)
+        onchain_card = _read_onchain_score_card(addr)
+
         if onchain and onchain.get("timestamp", 0) > 0:
             # We have on-chain data - use it exclusively
             if onchain_card:
-                # Full card data available
                 total_score = float(onchain_card["totalScore"])
                 base_score = float(onchain_card["baseScore"])
                 security_score = float(onchain_card["securityScore"])
-                
-                # Create minimal ScoreResponse for badge calculation
+
                 from backend.models.score import ScoreResponse, ScoreBreakdown, SecurityBreakdown
                 score_for_badges = ScoreResponse(
                     basename=None,
-                    address=address,
+                    address=addr,
                     total_score=total_score,
                     base_score=base_score,
                     security_score=security_score,
@@ -610,7 +651,7 @@ def dashboard_summary(address: str = Query(...)):
                         past_balance=float(onchain_card["avgBalanceLastMonth"]) / 1e18,
                         current_streak=onchain_card["currentStreak"],
                         max_streak=onchain_card["maxStreak"],
-                        age_days=0,  # Not stored on-chain
+                        age_days=0,
                         base_score=base_score
                     ),
                     security=SecurityBreakdown(
@@ -622,58 +663,51 @@ def dashboard_summary(address: str = Query(...)):
                     )
                 )
             else:
-                # Only simple score available
                 total_score = float(onchain["score"])
                 base_score = 0.0
                 security_score = 0.0
-                
+
                 from backend.models.score import ScoreResponse
                 score_for_badges = ScoreResponse(
                     basename=None,
-                    address=address,
+                    address=addr,
                     total_score=total_score,
                     base_score=base_score,
                     security_score=security_score
                 )
-            
-            # Generate badges based on on-chain data
-            badges = derive_badges_from_score(address, score_for_badges)
-            
-            # Prepare dashboard data
+
+            badges = derive_badges_from_score(addr, score_for_badges)
+
             dashboard_data = {
                 "lastScores": {
                     "total_score": total_score,
                     "base_score": base_score,
                     "security_score": security_score,
                     "date": datetime.fromtimestamp(onchain["timestamp"]).isoformat(),
-                    "source": "onchain"  # Indicate data source
+                    "source": "onchain"
                 },
-                "scoreHistory": get_recent_history(address),
+                "scoreHistory": get_recent_history(addr),
                 "badges": badges,
             }
-            
-            # Cache for performance (but always read from chain first)
-            save_user_dashboard(address, dashboard_data)
-            
+
+            save_user_dashboard(addr, dashboard_data)
             return JSONResponse(content=dashboard_data)
 
         # No on-chain data exists - return empty state
-        # Do NOT calculate off-chain values
         return JSONResponse(content={
             "lastScores": {
                 "total_score": 0.0,
                 "base_score": 0.0,
                 "security_score": 0.0,
                 "date": datetime.now().isoformat(),
-                "source": "none"  # No data available
+                "source": "none"
             },
-            "scoreHistory": get_recent_history(address),
+            "scoreHistory": get_recent_history(addr),
             "badges": []
         })
-        
+
     except Exception as e:
         print(f"Error in dashboard_summary: {e}")
-        # Return empty state on error
         return JSONResponse(status_code=200, content={
             "lastScores": {
                 "total_score": 0.0,
@@ -783,21 +817,39 @@ def score_contract_info(address: str | None = Query(default=None, description="O
 
 
 @router.get("/badges")
-def get_badges(address: str = Query(...)):
-    """Get badges based on on-chain score data."""
+def get_badges(
+    address: str = Query(...),
+    current: str | None = Depends(get_optional_address),
+):
+    """
+    Get badges based on on-chain score data.
+    Secured: requires Authorization and enforces address = token.sub (when ENFORCE_AUTH=true)
+    """
+    # --- Auth & address enforcement ---
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        addr = _validate_eth_address(address)
+        if address.lower() != current.lower():
+            raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
+    else:
+        if address:
+            addr = _validate_eth_address(address)
+        elif current:
+            addr = _validate_eth_address(current)
+        else:
+            raise HTTPException(status_code=400, detail="Address required")
+
     try:
-        # ALWAYS read from on-chain first
-        onchain = _read_onchain_last_score(address)
-        onchain_card = _read_onchain_score_card(address)
-        
+        onchain = _read_onchain_last_score(addr)
+        onchain_card = _read_onchain_score_card(addr)
+
         if onchain and onchain.get("timestamp", 0) > 0:
-            # We have on-chain data - use it exclusively
             if onchain_card:
-                # Full card data available
                 from backend.models.score import ScoreResponse, ScoreBreakdown, SecurityBreakdown
                 score_for_badges = ScoreResponse(
                     basename=None,
-                    address=address,
+                    address=addr,
                     total_score=float(onchain_card["totalScore"]),
                     base_score=float(onchain_card["baseScore"]),
                     security_score=float(onchain_card["securityScore"]),
@@ -808,7 +860,7 @@ def get_badges(address: str = Query(...)):
                         past_balance=float(onchain_card["avgBalanceLastMonth"]) / 1e18,
                         current_streak=onchain_card["currentStreak"],
                         max_streak=onchain_card["maxStreak"],
-                        age_days=0,  # Not stored on-chain
+                        age_days=0,
                         base_score=float(onchain_card["baseScore"])
                     ),
                     security=SecurityBreakdown(
@@ -820,25 +872,24 @@ def get_badges(address: str = Query(...)):
                     )
                 )
             else:
-                # Only simple score available
                 from backend.models.score import ScoreResponse
                 score_for_badges = ScoreResponse(
                     basename=None,
-                    address=address,
+                    address=addr,
                     total_score=float(onchain["score"]),
                     base_score=0.0,
                     security_score=0.0
                 )
-            
-            badges = derive_badges_from_score(address, score_for_badges)
-            return JSONResponse(content={"address": address, "badges": badges})
-        
-        # No on-chain data - return empty badges
-        return JSONResponse(content={"address": address, "badges": []})
-        
+
+            badges = derive_badges_from_score(addr, score_for_badges)
+            return JSONResponse(content={"address": addr, "badges": badges})
+
+        return JSONResponse(content={"address": addr, "badges": []})
+
     except Exception as e:
         print(f"Error in get_badges: {e}")
-        return JSONResponse(content={"address": address, "badges": []})
+        return JSONResponse(content={"address": addr if 'addr' in locals() else address, "badges": []})
+
 
 
 # Simple in-memory profile storage for now; can be replaced with DB later
@@ -871,10 +922,14 @@ _PROFILES = load_profiles()
 
 
 @router.get("/profile")
-def get_profile(address: str = Query(...)):
+def get_profile(address: str = Query(...), current: str | None = Depends(get_optional_address)):
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        if address.lower() != current.lower():
+            raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
     profile = _PROFILES.get(address.lower())
     if not profile:
-        # default profile
         profile = UserProfile(address=address).model_dump()
         _PROFILES[address.lower()] = profile
         save_profiles(_PROFILES)
@@ -882,7 +937,12 @@ def get_profile(address: str = Query(...)):
 
 
 @router.post("/profile")
-def save_profile(profile: UserProfile):
+def save_profile(profile: UserProfile, current: str | None = Depends(get_optional_address)):
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        if profile.address.lower() != current.lower():
+            raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
     # Preserve user-set username/avatar even when useBasenameProfile is toggled on
     # Store resolved basename separately (basename, basenameAvatar) for display-only
     existing = _PROFILES.get(profile.address.lower(), {})
@@ -916,11 +976,16 @@ def resolve_endpoint(input: str = Query(..., description="Wallet address or Base
 
 
 @router.get("/profile/sync_basename")
-def sync_basename(address: str = Query(...)):
+def sync_basename(address: str = Query(...), current: str | None = Depends(get_optional_address)):
     """
     Resolve Basename and return suggested username/avatar to sync
     (avatar placeholder for now; extend to fetch avatar when available).
     """
+    if settings.enforce_auth:
+        if current is None:
+            raise HTTPException(status_code=401, detail="Missing token")
+        if address.lower() != current.lower():
+            raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
     try:
         basename = resolve_address_to_basename(address)
         if not basename:
@@ -940,11 +1005,23 @@ def sync_basename(address: str = Query(...)):
 def sign_score(
     address: str = Query(..., description="User address"),
     score: float = Query(..., description="Total score (float allowed; will be rounded to int 0-1e6)"),
+    admin: str = Depends(require_admin),  # ← just admin
 ):
-    """
-    Return EIP-712 signature for submitScore(score, issuedAt, nonce, sig).
-    Domain: name=BaseBadgeScore, version=1, chainId, verifyingContract=V2 contract address
-    """
+    # Rate limiting for admin endpoints
+    if not hasattr(sign_score, '_last_call'):
+        sign_score._last_call = 0
+    import time
+    current_time = time.time()
+    if current_time - sign_score._last_call < 2:  # 2 seconds between calls
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    sign_score._last_call = current_time
+    
+    # Input validation
+    if not isinstance(score, (int, float)) or score < 0 or score > 1000000:
+        raise HTTPException(status_code=400, detail="Score must be between 0 and 1,000,000")
+    
+    addr = _validate_eth_address(address)
+    
     try:
         # Use V2 contract address
         contract_addr = _SCORECHECKER_V2_ADDR or settings.score_checker_v2_address
@@ -1064,11 +1141,46 @@ def sign_score_card(
     suspicious_contracts: int = Query(..., description="Number of suspicious contracts"),
     dangerous_interactions: int = Query(..., description="Number of dangerous interactions"),
     suspicious_nfts: int = Query(..., description="Number of suspicious NFTs"),
+    admin: str = Depends(require_admin),  # ← just admin
 ):
-    """
-    Return EIP-712 signature for submitScoreCard with all parameters.
-    Domain: name=BaseBadgeScoreCard, version=1, chainId, verifyingContract=V2 contract address
-    """
+    # Rate limiting for admin endpoints
+    if not hasattr(sign_score_card, '_last_call'):
+        sign_score_card._last_call = 0
+    import time
+    current_time = time.time()
+    if current_time - sign_score_card._last_call < 2:  # 2 seconds between calls
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    sign_score_card._last_call = current_time
+    
+    # Input validation
+    addr = _validate_eth_address(address)
+    if not isinstance(total_score, (int, float)) or total_score < 0 or total_score > 1000000:
+        raise HTTPException(status_code=400, detail="Total score must be between 0 and 1,000,000")
+    if not isinstance(base_score, (int, float)) or base_score < 0 or base_score > 1000000:
+        raise HTTPException(status_code=400, detail="Base score must be between 0 and 1,000,000")
+    if not isinstance(security_score, (int, float)) or security_score < 0 or security_score > 1000000:
+        raise HTTPException(status_code=400, detail="Security score must be between 0 and 1,000,000")
+    if not isinstance(tx_count, int) or tx_count < 0:
+        raise HTTPException(status_code=400, detail="Transaction count must be non-negative integer")
+    if not isinstance(current_streak, int) or current_streak < 0:
+        raise HTTPException(status_code=400, detail="Current streak must be non-negative integer")
+    if not isinstance(max_streak, int) or max_streak < 0:
+        raise HTTPException(status_code=400, detail="Max streak must be non-negative integer")
+    if not isinstance(current_balance, (int, float)) or current_balance < 0:
+        raise HTTPException(status_code=400, detail="Current balance must be non-negative")
+    if not isinstance(avg_balance_last_month, (int, float)) or avg_balance_last_month < 0:
+        raise HTTPException(status_code=400, detail="Average balance must be non-negative")
+    if not isinstance(gas_paid, (int, float)) or gas_paid < 0:
+        raise HTTPException(status_code=400, detail="Gas paid must be non-negative")
+    if not isinstance(suspicious_tokens, int) or suspicious_tokens < 0:
+        raise HTTPException(status_code=400, detail="Suspicious tokens count must be non-negative integer")
+    if not isinstance(suspicious_contracts, int) or suspicious_contracts < 0:
+        raise HTTPException(status_code=400, detail="Suspicious contracts count must be non-negative integer")
+    if not isinstance(dangerous_interactions, int) or dangerous_interactions < 0:
+        raise HTTPException(status_code=400, detail="Dangerous interactions count must be non-negative integer")
+    if not isinstance(suspicious_nfts, int) or suspicious_nfts < 0:
+        raise HTTPException(status_code=400, detail="Suspicious NFTs count must be non-negative integer")
+    
     try:
         # Use V2 contract address
         contract_addr = _SCORECHECKER_V2_ADDR or settings.score_checker_v2_address
@@ -1187,16 +1299,76 @@ def sign_score_card(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/csv/list/{address}")
+def list_csv_reports(address: str, current: str | None = Depends(get_optional_address)):
+    """
+    List available CSV security reports for a specific address
+    """
+    # --- Auth & address enforcement ---
+    if settings.enforce_auth:
+        if current is None: raise HTTPException(status_code=401, detail="Missing token")
+        if address.lower() != current.lower(): raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
+
+    try:
+        # Validate address format
+        addr = _validate_eth_address(address)
+        
+        # Get the security reports directory
+        base_dir = Path(__file__).parent.parent.parent
+        reports_dir = base_dir / "data" / "security_reports"
+        
+        if not reports_dir.exists():
+            return JSONResponse(content={"reports": []})
+        
+        # Find all CSV files for this address
+        pattern = f"*_{addr}_*.csv"
+        csv_files = list(reports_dir.glob(pattern))
+        
+        reports = []
+        for file_path in csv_files:
+            # Parse filename: type_address_timestamp.csv
+            parts = file_path.stem.split('_')
+            if len(parts) >= 5:
+                report_type = f"{parts[0]}_{parts[1]}"            # risky_tokens / risky_contracts / risky_signs / suspicious_nfts
+                addr_in_file = parts[2]                            # 0x...
+                timestamp = f"{parts[3]}_{parts[4]}"              # YYYYMMDD_HHMMSS
+            else:
+                continue
+                
+            reports.append({
+                "type": report_type,
+                "timestamp": timestamp,
+                "filename": file_path.name,
+                "size": file_path.stat().st_size,
+                "download_url": f"/csv/{report_type}/{addr_in_file}?timestamp={timestamp}",
+            })
+        
+        # Sort by timestamp (newest first)
+        reports.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return JSONResponse(content={"reports": reports})
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list CSV reports: {str(e)}")
+
+
 @router.get("/csv/{report_type}/{address}")
 def download_csv_report(
     report_type: str,
     address: str,
-    timestamp: str = Query(None, description="Optional timestamp filter for specific report")
+    timestamp: str = Query(None, description="Optional timestamp filter for specific report"),
+    current: str | None = Depends(get_optional_address),
 ):
     """
     Download CSV security report files for a specific address and report type.
     Report types: risky_tokens, risky_contracts, risky_signs, suspicious_nfts
     """
+    
+    # --- Auth & address enforcement ---
+    if settings.enforce_auth:
+        if current is None: raise HTTPException(status_code=401, detail="Missing token")
+        if address.lower() != current.lower(): raise HTTPException(status_code=403, detail="Forbidden: address mismatch")
+
     try:
         # Validate report type
         valid_types = ['risky_tokens', 'risky_contracts', 'risky_signs', 'suspicious_nfts']
@@ -1204,8 +1376,7 @@ def download_csv_report(
             raise HTTPException(status_code=400, detail=f"Invalid report type. Must be one of: {', '.join(valid_types)}")
         
         # Validate address format
-        if not address.startswith('0x') or len(address) != 42:
-            raise HTTPException(status_code=400, detail="Invalid address format")
+        addr = _validate_eth_address(address)
         
         # Get the security reports directory
         base_dir = Path(__file__).parent.parent.parent
@@ -1215,7 +1386,7 @@ def download_csv_report(
             raise HTTPException(status_code=404, detail="Security reports directory not found")
         
         # Find the most recent CSV file for this address and report type
-        pattern = f"{report_type}_{address}_*.csv"
+        pattern = f"{report_type}_{addr}_*.csv"
         csv_files = list(reports_dir.glob(pattern))
         
         if not csv_files:
@@ -1223,7 +1394,7 @@ def download_csv_report(
         
         # If timestamp is provided, try to find exact match
         if timestamp:
-            target_file = reports_dir / f"{report_type}_{address}_{timestamp}.csv"
+            target_file = reports_dir / f"{report_type}_{addr}_{timestamp}.csv"
             if not target_file.exists():
                 raise HTTPException(status_code=404, detail=f"Report not found for timestamp {timestamp}")
         else:
@@ -1237,8 +1408,8 @@ def download_csv_report(
         
         # Return the CSV file as a download
         from fastapi.responses import FileResponse
-        
-        filename = f"{report_type}_{address}_{target_file.stem.split('_')[-1]}.csv"
+        ts = '_'.join(target_file.stem.split('_')[3:])   # YYYYMMDD_HHMMSS
+        filename = f"{report_type}_{address}_{ts}.csv"
         return FileResponse(
             path=str(target_file),
             filename=filename,
@@ -1250,49 +1421,3 @@ def download_csv_report(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download CSV report: {str(e)}")
-
-
-@router.get("/csv/list/{address}")
-def list_csv_reports(address: str):
-    """
-    List available CSV security reports for a specific address
-    """
-    try:
-        # Validate address format
-        if not address.startswith('0x') or len(address) != 42:
-            raise HTTPException(status_code=400, detail="Invalid address format")
-        
-        # Get the security reports directory
-        base_dir = Path(__file__).parent.parent.parent
-        reports_dir = base_dir / "data" / "security_reports"
-        
-        if not reports_dir.exists():
-            return JSONResponse(content={"reports": []})
-        
-        # Find all CSV files for this address
-        pattern = f"*_{address}_*.csv"
-        csv_files = list(reports_dir.glob(pattern))
-        
-        reports = []
-        for file_path in csv_files:
-            # Parse filename: type_address_timestamp.csv
-            parts = file_path.stem.split('_')
-            if len(parts) >= 3:
-                report_type = parts[0]
-                timestamp = '_'.join(parts[2:])  # Handle timestamps with underscores
-                
-                reports.append({
-                    "type": report_type,
-                    "timestamp": timestamp,
-                    "filename": file_path.name,
-                    "size": file_path.stat().st_size,
-                    "download_url": f"/csv/{report_type}/{address}?timestamp={timestamp}"
-                })
-        
-        # Sort by timestamp (newest first)
-        reports.sort(key=lambda x: x["timestamp"], reverse=True)
-        
-        return JSONResponse(content={"reports": reports})
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list CSV reports: {str(e)}")

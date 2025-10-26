@@ -1,7 +1,9 @@
+// frontend/contexts/ScoreContext.tsx
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useAccount } from 'wagmi'
+import { useAuth } from './AuthContext'
 
 interface ScoreData {
   total_score: number
@@ -36,121 +38,97 @@ const ScoreContext = createContext<ScoreContextType | undefined>(undefined)
 
 export function ScoreProvider({ children }: { children: React.ReactNode }) {
   const { address, isConnected } = useAccount()
+  const { token, isAuthenticated } = useAuth()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0)
-  
-  // CRITICAL: Store data in memory only - no localStorage persistence
+
+  // In-memory only
   const [lastScores, setLastScores] = useState<ScoreData | null>(null)
   const [scoreHistory, setScoreHistory] = useState<ScoreData[]>([])
   const [badges, setBadges] = useState<BadgeData[]>([])
 
-  // CRITICAL: Load scores from on-chain data when wallet connects
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  const buildHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+    }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return headers
+  }, [token])
+
+  const resetState = useCallback(() => {
+    setLastScores(null)
+    setScoreHistory([])
+    setBadges([])
+    setLastUpdateTime(0)
+    setError(null)
+  }, [])
+
   const loadOnchainScores = useCallback(async () => {
     if (!isConnected || !address) return
-    
     setIsLoading(true)
     setError(null)
-    
     try {
-      console.log('🔄 Loading on-chain scores for address:', address)
-      const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const res = await fetch(`${api}/dashboard/summary?address=${encodeURIComponent(address)}`)
-      
+      const url = `${API_BASE}/dashboard/summary?address=${encodeURIComponent(address as unknown as string)}`
+      const res = await fetch(url, { headers: buildHeaders() })
       if (!res.ok) {
-        console.log('❌ No on-chain data found - user must complete Score Card transaction first')
-        setLastScores(null)
-        setScoreHistory([])
-        setBadges([])
-        setLastUpdateTime(0)
+        resetState()
         return
       }
-      
       const data = await res.json()
-      console.log('✅ On-chain data loaded:', data)
-      
       if (data.lastScores && data.lastScores.total_score > 0) {
         setLastScores(data.lastScores)
         setScoreHistory(data.scoreHistory || [])
         setBadges(data.badges || [])
         setLastUpdateTime(Date.now())
-        console.log('✅ Dashboard updated with on-chain data')
       } else {
-        console.log('🚫 No valid on-chain score data found')
-        setLastScores(null)
-        setScoreHistory([])
-        setBadges([])
-        setLastUpdateTime(0)
+        resetState()
       }
-      
     } catch (e) {
-      console.error('💥 Failed to load on-chain scores:', e)
       setError(e instanceof Error ? e.message : 'Failed to load on-chain data')
-      setLastScores(null)
-      setScoreHistory([])
-      setBadges([])
-      setLastUpdateTime(0)
+      resetState()
     } finally {
       setIsLoading(false)
     }
-  }, [isConnected, address])
+  }, [API_BASE, address, isConnected, buildHeaders, resetState])
 
-  // CRITICAL: Auto-load on-chain data when wallet connects
+  // Load when wallet/auth becomes available; clear on disconnect
   useEffect(() => {
     if (isConnected && address) {
-      console.log('🔄 Wallet connected - loading on-chain data')
       loadOnchainScores()
     } else {
-      // Clear data when wallet disconnects
-      setLastScores(null)
-      setScoreHistory([])
-      setBadges([])
-      setLastUpdateTime(0)
-      setError(null)
+      resetState()
     }
-  }, [isConnected, address, loadOnchainScores])
+  }, [isConnected, address, isAuthenticated, token, loadOnchainScores, resetState])
 
-  // Refresh scores from on-chain data
   const refreshScores = useCallback(async () => {
     await loadOnchainScores()
   }, [loadOnchainScores])
 
-  // Update scores manually (e.g., after new Score Card transaction)
   const updateScores = useCallback(async (newScores: ScoreData) => {
-    console.log('✅ Updating scores after Score Card transaction:', newScores)
-    
-    // Update local state immediately
     setLastScores(newScores)
-    setScoreHistory(prev => [...prev, newScores].slice(-30)) // Keep last 30
+    setScoreHistory(prev => [...prev, newScores].slice(-30))
     setLastUpdateTime(Date.now())
-    
-    // CRITICAL: Also refresh badges from on-chain
     try {
-      if (address) {
-        const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const res = await fetch(`${api}/badges?address=${encodeURIComponent(address)}`)
-        if (res.ok) {
-          const badgeData = await res.json()
-          if (badgeData.badges) {
-            setBadges(badgeData.badges)
-            console.log('✅ Badges refreshed from on-chain after score update')
-          }
-        }
+      if (!address) return
+      const url = `${API_BASE}/badges?address=${encodeURIComponent(address as unknown as string)}`
+      const res = await fetch(url, { headers: buildHeaders() })
+      if (res.ok) {
+        const badgeData = await res.json()
+        if (badgeData.badges) setBadges(badgeData.badges)
+      }
+    } catch {
+      // Silent failure: UI already updated locally
     }
-    } catch (error) {
-      console.error('Failed to refresh badges from on-chain:', error)
-    }
-  }, [address])
+  }, [API_BASE, address, buildHeaders])
 
-  // Clear all data
   const clearScores = useCallback(() => {
-    setLastScores(null)
-    setScoreHistory([])
-    setBadges([])
-    setError(null)
-    setLastUpdateTime(0)
-    console.log('🧹 All score data cleared')
-  }, [])
+    resetState()
+  }, [resetState])
 
   const value: ScoreContextType = {
     lastScores,
@@ -166,11 +144,7 @@ export function ScoreProvider({ children }: { children: React.ReactNode }) {
     lastUpdateTime,
   }
 
-  return (
-    <ScoreContext.Provider value={value}>
-      {children}
-    </ScoreContext.Provider>
-  )
+  return <ScoreContext.Provider value={value}>{children}</ScoreContext.Provider>
 }
 
 export function useScore() {

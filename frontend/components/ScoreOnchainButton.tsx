@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from 'wagmi'
+import { formatEther } from 'viem'
 import { base } from 'viem/chains'
-import { parseEther, formatEther } from 'viem'
 import { SCORE_CHECKER_V2_MAINNET_ABI } from './abi/ScoreCheckerV2_MAINNET'
 
 interface Props {
@@ -14,6 +14,7 @@ interface Props {
 
 export function ScoreOnchainButton({ contractAddress, onSuccess, className = '' }: Props) {
   const { address, chainId, isConnected } = useAccount()
+  const { switchChainAsync } = useSwitchChain()
   const [uiError, setUiError] = useState<string | null>(null)
 
   const { data: fee } = useReadContract({
@@ -32,15 +33,22 @@ export function ScoreOnchainButton({ contractAddress, onSuccess, className = '' 
     }
   }, [isSuccess, hash, onSuccess])
 
-  const handleClick = () => {
+  const handleClick = async () => {
     setUiError(null)
+
     if (!isConnected || !address) {
       setUiError('Please connect your wallet.')
       return
     }
-    if (chainId !== base.id) {
-      setUiError('Please switch to ' + 'Base'.replace('Base', '<span class="text-gamefi-blue">Base</span>') + ' network.')
-      return
+
+    // Ensure Base chain
+    if (chainId !== base.id) {  
+      try {
+        await switchChainAsync({ chainId: base.id })
+      } catch {
+        setUiError('Please switch to ' + 'Base'.replace('Base', '<span class="text-gamefi-blue">Base</span>') + ' network.')
+        return
+      }
     }
     if (!fee) {
       setUiError('Fetching fee... try again.')
@@ -79,7 +87,10 @@ export function ScoreOnchainButton({ contractAddress, onSuccess, className = '' 
       )}
       {hash && (
         <div className="text-xs text-gray-400 mt-1">
-          Tx: <a className="underline" href={`https://basescan.org/tx/${hash}`} target="_blank" rel="noreferrer">View</a>
+          Tx:{' '}
+          <a className="underline" href={`https://basescan.org/tx/${hash}`} target="_blank" rel="noreferrer">
+            View
+          </a>
         </div>
       )}
     </div>

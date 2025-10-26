@@ -13,6 +13,14 @@ export interface UserProfile {
 
 const LOCAL_PROFILE_KEY = 'bb_user_profile'
 
+function authHeaders(token?: string, extra?: HeadersInit): HeadersInit {
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
+
+
 export class ProfileManager {
   /**
    * Load profile from local storage
@@ -44,10 +52,16 @@ export class ProfileManager {
   /**
    * Load profile from backend
    */
-  static async loadFromBackend(address: string): Promise<UserProfile | null> {
+  static async loadFromBackend(address: string, token?: string): Promise<UserProfile | null> {
     try {
+      if (!token) {
+        return null
+      }
       const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const res = await fetch(`${api}/profile?address=${encodeURIComponent(address)}`)
+      const res = await fetch(
+        `${api}/profile?address=${encodeURIComponent(address)}`,
+        { headers: authHeaders(token), cache: 'no-store' }
+      )
       if (res.ok) {
         const data = await res.json()
         return {
@@ -69,14 +83,18 @@ export class ProfileManager {
   /**
    * Save profile to backend
    */
-  static async saveToBackend(address: string, profile: UserProfile): Promise<boolean> {
+  static async saveToBackend(address: string, profile: UserProfile, token?: string): Promise<boolean> {
     try {
       const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      
-      // If useBasenameProfile: fetch suggested username/avatar from backend and merge
+      if (!token) throw new Error('Missing auth token')
+
+      // if useBasenameProfile is enabled, sync_basename should be included in the headers
       let payload: any = { address, ...profile }
       if (profile.useBasenameProfile) {
-        const syncRes = await fetch(`${api}/profile/sync_basename?address=${encodeURIComponent(address)}`)
+        const syncRes = await fetch(
+          `${api}/profile/sync_basename?address=${encodeURIComponent(address)}`,
+          { headers: authHeaders(token), cache: 'no-store' }
+        )
         const syncData = syncRes.ok ? await syncRes.json() : null
         if (!syncData?.has_basename) {
           throw new Error('To use Basename profile, please set a Basename for your wallet first.')
@@ -90,14 +108,10 @@ export class ProfileManager {
 
       const res = await fetch(`${api}/profile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       })
-      
-      if (!res.ok) {
-        throw new Error('Failed to save profile to backend')
-      }
-      
+      if (!res.ok) throw new Error('Failed to save profile to backend')
       return true
     } catch (error) {
       console.error('❌ Failed to save profile to backend:', error)
@@ -108,27 +122,20 @@ export class ProfileManager {
   /**
    * Load profile with fallback strategy (local first, then backend)
    */
-  static async loadProfile(address: string): Promise<UserProfile> {
-    // First, try to load from local storage
+  static async loadProfile(address: string, token?: string): Promise<UserProfile> {
+    // 1) local first
     const localProfile = this.loadFromLocal(address)
-    
-    // Then try to load from backend and merge
-    const backendProfile = await this.loadFromBackend(address)
-    
+
+    // 2) backend with header(if have token)
+    const backendProfile = await this.loadFromBackend(address, token)
+
     if (backendProfile) {
-      // Merge backend data with local data (backend takes precedence)
-      const mergedProfile = {
-        ...localProfile,
-        ...backendProfile
-      }
-      
-      // Save merged profile to local storage
+      const mergedProfile = { ...(localProfile || {}), ...backendProfile }
       this.saveToLocal(address, mergedProfile)
-      
       return mergedProfile
     }
-    
-    // Return local profile or default
+
+    // 3) fallback
     return localProfile || {
       username: '',
       avatar: '/default-avatar.svg',
@@ -138,26 +145,25 @@ export class ProfileManager {
     }
   }
 
+
   /**
    * Save profile with local storage and backend sync
    */
-  static async saveProfile(address: string, profile: UserProfile): Promise<boolean> {
-    // Save to local storage first
+  static async saveProfile(address: string, profile: UserProfile, token?: string): Promise<boolean> {
+    // first local
     this.saveToLocal(address, profile)
-    
-    // Try to save to backend
-    const backendSuccess = await this.saveToBackend(address, profile)
-    
+
+    // after backend
+    const backendSuccess = await this.saveToBackend(address, profile, token)
+
     if (backendSuccess) {
-      // Update local storage with backend data
-      const backendProfile = await this.loadFromBackend(address)
-      if (backendProfile) {
-        this.saveToLocal(address, backendProfile)
-      }
+      const backendProfile = await this.loadFromBackend(address, token)
+      if (backendProfile) this.saveToLocal(address, backendProfile)
     }
-    
-    return true // Always return true since local save succeeds
+
+    return true
   }
+
 
   /**
    * Get display name based on profile settings

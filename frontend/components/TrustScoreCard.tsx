@@ -8,6 +8,7 @@ import { Avatar as OnchainAvatar } from '@coinbase/onchainkit/identity'
 import { base as baseChain } from 'viem/chains'
 import MagicBento from './MagicBento'
 import TiltedCard from './TiltedCard'
+import { useAuth } from '../contexts/AuthContext'
 
 interface TrustScoreCardProps {
   address: string
@@ -76,6 +77,34 @@ export function TrustScoreCard({
   useEffect(() => {
     setIsExpanded(!(startCollapsed ?? false))
   }, [address, startCollapsed])
+
+  // Auth + API base
+  const { token } = useAuth()
+  const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  // Secure CSV download with Authorization header
+  async function downloadCsv(
+    kind: 'risky_tokens' | 'risky_contracts' | 'risky_signs' | 'suspicious_nfts'
+  ) {
+    try {
+      const res = await fetch(`${api}/csv/${kind}/${address}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(`Download failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${kind}_${address}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('CSV download error:', e)
+    }
+  }
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-gamefi-yellow'
@@ -341,13 +370,12 @@ export function TrustScoreCard({
                       <div className="text-2xl font-bold text-red-400 mb-1">{safeSecurity.risky_tokens}</div>
                       <div className="text-sm text-red-200">Risky Tokens</div>
                     </div>
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/csv/risky_tokens/${address}`}
-                      download
+                    <button
+                      onClick={() => downloadCsv('risky_tokens')}
                       className="block w-full bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-center"
                     >
                       📥 Download CSV
-                    </a>
+                  </button>
                   </div>
 
                   <div className="bg-gradient-to-br from-orange-900/40 to-orange-800/30 p-4 rounded-xl border border-orange-700/40 hover:border-orange-600/60 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/20">
@@ -355,13 +383,12 @@ export function TrustScoreCard({
                       <div className="text-2xl font-bold text-orange-400 mb-1">{safeSecurity.risky_contracts}</div>
                       <div className="text-sm text-orange-200">Risky Contracts</div>
                     </div>
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/csv/risky_contracts/${address}`}
-                      download
+                    <button
+                      onClick={() => downloadCsv('risky_contracts')}
                       className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-center"
                     >
                       📥 Download CSV
-                    </a>
+                  </button>
                   </div>
 
                   <div className="bg-gradient-to-br from-yellow-900/40 to-yellow-800/30 p-4 rounded-xl border border-yellow-700/40 hover:border-yellow-600/60 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20">
@@ -369,13 +396,12 @@ export function TrustScoreCard({
                       <div className="text-2xl font-bold text-yellow-400 mb-1">{safeSecurity.risky_signs}</div>
                       <div className="text-sm text-yellow-200">Risky Signs</div>
                     </div>
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/csv/risky_signs/${address}`}
-                      download
+                    <button
+                      onClick={() => downloadCsv('risky_signs')}
                       className="block w-full bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-center"
                     >
                       📥 Download CSV
-                    </a>
+                    </button>
                   </div>
 
                   <div className="bg-gradient-to-br from-red-900/40 to-red-800/30 p-4 rounded-xl border border-red-700/40 hover:border-red-600/60 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/20">
@@ -383,13 +409,12 @@ export function TrustScoreCard({
                       <div className="text-2xl font-bold text-red-400 mb-1">{safeSecurity.suspicious_nfts}</div>
                       <div className="text-sm text-red-200">Suspicious NFTs</div>
                     </div>
-                    <a 
-                      href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/csv/suspicious_nfts/${address}`}
-                      download
+                    <button
+                      onClick={() => downloadCsv('suspicious_nfts')}
                       className="block w-full bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors duration-200 text-center"
                     >
                       📥 Download CSV
-                    </a>
+                    </button>
                   </div>
                 </div>
                 
